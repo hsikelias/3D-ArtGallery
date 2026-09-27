@@ -1,2 +1,5 @@
 # HackNite: 3D Art Gallery
 
+# Team Members
+1. Lekish Sai Podili
+2. Brando Vasquez
