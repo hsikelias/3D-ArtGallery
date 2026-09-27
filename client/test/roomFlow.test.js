@@ -44,6 +44,7 @@ test('create, name the ghost, reopen, and join a saved room without losing the a
   const nameTag = { isCSS2DObject: true, element: new Element() };
   let resets = 0;
   let displayed = 0;
+  let voiceEntries = 0;
   const runtime = {
     controls: {}, ghost: { userData: {}, traverse(fn) { fn(nameTag); } },
     playerController: { reset() { resets++; } },
@@ -57,6 +58,7 @@ test('create, name the ghost, reopen, and join a saved room without losing the a
     window: { addEventListener() {} }, navigator: { clipboard: { async writeText() {} } },
     URL, Blob, console, MAX_IMAGES: 15, validateImage, isRoomCode,
     createGalleryRuntime: async () => runtime,
+    createInGameVoice: () => ({ enterRoom() { voiceEntries++; } }),
     localRooms: {
       async getDraft() { return { images, username: 'Artist' }; },
       async saveDraft(draft) { savedDraft = draft; },
@@ -68,6 +70,7 @@ test('create, name the ghost, reopen, and join a saved room without losing the a
     .replace(/^import .*;\r?\n/gm, '');
   vm.runInContext(source + '\nglobalThis.ready = Promise.all([sceneReady, restoreDraft]);', context);
   await context.ready;
+  assert.equal(voiceEntries, 0, 'voice remains hidden until a room opens');
   const dialog = get('#entry-dialog');
   await dialog.fire('cancel');
   assert.equal(dialog.open, true, 'first-time users cannot dismiss entry');
@@ -86,6 +89,7 @@ test('create, name the ghost, reopen, and join a saved room without losing the a
   assert.equal(savedDraft.images.length, 1);
   assert.equal(dialog.open, false);
   assert.equal(resets, 1);
+  assert.equal(voiceEntries, 1, 'a created room starts a fresh muted voice session');
   await get('#show-room-code').fire('click');
   assert.equal(get('#room-code-display').textContent, '123456');
   await get('#close-menu').fire('click');
@@ -100,9 +104,11 @@ test('create, name the ghost, reopen, and join a saved room without losing the a
   assert.match(get('#entry-error').textContent, /not found/);
   assert.equal(dialog.open, true);
   assert.equal(displayed, 1, 'failed join preserves the previous exhibition');
+  assert.equal(voiceEntries, 1, 'failed joins do not reset the active voice session');
   get('#room-code').value = '123456';
   get('#username').value = 'Visitor';
   await get('#identity-form').fire('submit');
   assert.equal(nameTag.element.textContent, 'Visitor');
+  assert.equal(voiceEntries, 2, 'joining another room resets voice');
   assert.equal(dialog.open, false);
 });

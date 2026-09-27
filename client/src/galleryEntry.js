@@ -1,9 +1,11 @@
 import { createGalleryRuntime } from './galleryRuntime.js';
 import { localRooms, MAX_IMAGES, validateImage, isRoomCode } from './rooms/localRooms.js';
+import { createInGameVoice } from './voice/inGameVoice.js';
 
 const $ = selector => document.querySelector(selector);
 const dialog = $('#entry-dialog');
 const world = $('.world');
+const gameVoice = createInGameVoice(world);
 const username = $('#username');
 const code = $('#room-code');
 const picker = $('#image-files');
@@ -180,6 +182,7 @@ $('#identity-form').addEventListener('submit', async event => {
     setGhostName(username.value);
     runtime.playerController.reset();
     state.room = room;
+    gameVoice.enterRoom();
     $('#show-room-code').disabled = false;
     setBusy(false);
     closeMenu();

@@ -1,8 +1,14 @@
 # Proximity voice (isolated prototype)
 
-All files are new. Nothing is imported into the existing gallery, and no packages
-or multiplayer-server files were changed. Start Vite with `cd client` then
-`npm run dev`, and open `/voice-preview.html`.
+The gallery now mounts the mic HUD in the top-right corner after creating or
+joining a local room. `galleryEntry.js` calls `inGameVoice.js`; a new room starts
+muted and releases any previous mic. Leaving the page also releases the mic.
+The normal room modal makes the HUD inert along with the rest of the world.
+Remote players are not connected yet, so the HUD explicitly says no listeners
+are connected. No packages or multiplayer-server files were changed.
+
+Start Vite with `cd client` then `npm run dev`. Use `/` for the in-game controls,
+or `/voice-preview.html` for the standalone audio test.
 
 - Click the mic to request microphone access and unmute. Click again to mute.
 - The green vertical meter uses live microphone RMS levels; it is zero while muted.
@@ -21,6 +27,7 @@ or multiplayer-server files were changed. Start Vite with `cd client` then
 
 - `proximityVoice.js`: mic lifecycle, mute, level meter data, remote audio and distance.
 - `voiceControls.js`: mic icon button and green bar, with styles isolated in a shadow root.
+- `inGameVoice.js`: top-right placement and room/page microphone lifecycle.
 - `voicePeers.js`: audio-only WebRTC peers; receives room membership and signaling externally.
 - `voicePreview.js` and `../../voice-preview.html`: independent manual test page.
 - `../../test/proximityVoice.test.js`: unit tests, run with `node --test test/proximityVoice.test.js` from `client`.
@@ -81,9 +88,8 @@ for the local loopback check, not reliable internet connectivity. This is a smal
 peer mesh, not an SFU for large groups. Distance is client playback volume, not a
 privacy boundary: room peers still receive media, even when too far away to hear it.
 
-The preview is served directly by Vite dev. The current production build only
-includes the existing app entry; adding the feature to production requires the
-later integration change. This branch deliberately leaves that configuration alone.
+The game HUD is included in the normal production build. The separate audio-lab
+preview is served directly by Vite dev and is not a production entry point.
 
 Browser references: [microphone permission and secure contexts](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia),
 [audio track replacement](https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpSender/replaceTrack),

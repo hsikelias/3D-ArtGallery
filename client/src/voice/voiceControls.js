@@ -1,12 +1,12 @@
 // A shadow root keeps this HUD's styles separate from the gallery and room UI.
-export function mountVoiceControls(container, voice) {
+export function mountVoiceControls(container, voice, { hint = 'Only nearby visitors hear you' } = {}) {
   const host = document.createElement('div');
   const root = host.attachShadow({ mode: 'open' });
   root.innerHTML = `
     <style>
       :host { display: block; font: 14px/1.4 system-ui, sans-serif; color: #f2f5f0; }
       * { box-sizing: border-box; }
-      .hud { display: flex; align-items: center; gap: 14px; width: fit-content; padding: 14px 20px 14px 14px; border-radius: 22px; border: 1px solid #ffffff26; background: #17251feb; box-shadow: 0 12px 36px #0003; }
+      .hud { display: flex; align-items: center; gap: 14px; width: fit-content; max-width: 100%; padding: 14px 20px 14px 14px; border-radius: 22px; border: 1px solid #ffffff26; background: #17251feb; box-shadow: 0 12px 36px #0003; }
       button { display: grid; place-items: center; width: 54px; height: 54px; padding: 0; border: 1px solid #ffffff38; border-radius: 16px; background: #ffffff12; color: #e5e9e1; cursor: pointer; }
       button[aria-pressed="true"] { background: #98e7a3; color: #15351f; border-color: #98e7a3; }
       button:focus-visible { outline: 3px solid #98e7a3; outline-offset: 4px; }
@@ -16,7 +16,7 @@ export function mountVoiceControls(container, voice) {
       .fill { width: 100%; height: 100%; transform: scaleY(0); transform-origin: bottom; background: #83ed97; border-radius: inherit; }
       strong { display: block; font-size: 14px; font-weight: 600; }
       .hint { color: #b7c4b6; font-size: 12px; }
-      .error { max-width: 300px; font-size: 13px; color: #ffb3a7; margin: 10px 0 0; }
+      .error { max-width: 300px; padding: 10px; border-radius: 8px; background: #17251f; font-size: 13px; color: #ffb3a7; margin: 10px 0 0; }
       .error:empty { display: none; }
     </style>
     <div class="hud">
@@ -32,6 +32,7 @@ export function mountVoiceControls(container, voice) {
     </div>
     <p class="error" role="alert"></p>`;
   container.append(host);
+  root.querySelector('.hint').textContent = hint;
   const button = root.querySelector('button');
   const meter = root.querySelector('.meter');
   const fill = root.querySelector('.fill');
