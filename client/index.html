@@ -107,16 +107,26 @@
   paint-order: stroke fill;
   text-shadow: 0 1px 2px #000;
 }
+    .upload-previews { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 14px; margin: 16px 0 24px; }
+    .upload-card { margin: 0; min-width: 0; padding: 8px; border: 2px solid #343541; border-radius: 8px; background: #f4f3f8; }
+    .upload-card img { width: 100%; height: 100px; object-fit: contain; display: block; }
+    .upload-card figcaption { font-size: .75rem; overflow-wrap: anywhere; margin: 8px 0; }
+    .upload-card button { width: 100%; padding: 8px; border: 1px solid #343541; border-radius: 5px; background: white; }
+    input[type="file"] { width: 100%; padding: 16px; border: 2px dashed #a49ab7; border-radius: 8px; background: #f4f3f8; }
+    input[type="file"]::file-selector-button { padding: 8px 12px; margin-right: 12px; border: 2px solid #343541; border-radius: 6px; background: #e4dff0; font: inherit; cursor: pointer; }
+    #entry-error, #art-error { color: #a34253; white-space: pre-line; }
+    .room-code-display { font-size: clamp(2rem, 8vw, 4rem); text-align: center; letter-spacing: .15em; font-weight: 900; font-variant-numeric: tabular-nums; }
+    button:disabled { opacity: .55; cursor: wait; }
   </style>
 </head>
 <body>
   <main class="world">
     <div id="viewport"></div>
-    <div class="brand">The shared gallery</div>
     <p id="world-status" role="status">Loading the 3D gallery…</p>
     <div class="gallery-actions" role="group" aria-label="Gallery controls">
       <button id="reset-player" class="secondary" type="button" disabled>Reset player and camera</button>
       <button id="reopen" class="secondary" type="button">Open gallery menu</button>
+      <button id="show-room-code" class="secondary" type="button" disabled>Show room code</button>
     </div>
   </main>
   <dialog id="entry-dialog" aria-labelledby="dialog-title" aria-describedby="dialog-description">
@@ -127,30 +137,24 @@
     <p id="dialog-description" class="intro">Bring your art, or explore someone else's. How would you like to begin?</p>
 
     <section data-step="welcome">
-      <button class="choice" id="choose-create" type="button"><strong>Create a gallery ↗</strong><span>Bring your artwork from Bluesky and invite people in.</span></button>
+      <button class="choice" id="choose-create" type="button"><strong>Create a gallery ↗</strong><span>Upload your own images and invite people in.</span></button>
       <button class="choice" id="choose-join" type="button"><strong>Join a room →</strong><span>Have an invitation? Enter your room code.</span></button>
     </section>
 
     <form data-step="artwork" id="art-form" hidden>
-      <label for="bluesky-handle">Your Bluesky handle</label>
-      <input id="bluesky-handle" name="handle" type="text" placeholder="you.bsky.social" autocomplete="off" maxlength="253" required aria-describedby="bluesky-hint" />
-      <p id="bluesky-hint" class="hint">Preview only: no Bluesky posts are fetched. Try the sample artwork below.</p>
-      <fieldset aria-describedby="art-error">
-        <legend>Choose sample artwork</legend>
-        <div class="art-grid">
-          <label class="art"><span class="swatch"></span><input type="checkbox" name="artwork" value="sample-garden" /> Garden</label>
-          <label class="art"><span class="swatch sun"></span><input type="checkbox" name="artwork" value="sample-sun" /> Sun</label>
-          <label class="art"><span class="swatch sea"></span><input type="checkbox" name="artwork" value="sample-sea" /> Sea</label>
-        </div>
-        <p id="art-error" role="alert"></p>
-      </fieldset>
+      <label for="image-files">Your artwork</label>
+      <input id="image-files" type="file" accept="image/jpeg,image/png,image/webp" multiple aria-describedby="upload-hint art-error" />
+      <p id="upload-hint" class="hint">Choose up to 15 JPG, PNG or WebP images, maximum 2 MB each. Your draft is saved in this browser.</p>
+      <p id="upload-count" role="status">0 / 15 images</p>
+      <div id="upload-previews" class="upload-previews"></div>
+      <p id="art-error" role="alert"></p>
       <button class="primary" type="submit">Continue</button>
     </form>
 
     <form data-step="room" id="room-form" hidden>
       <label for="room-code">Room code</label>
-      <input id="room-code" name="roomCode" type="text" placeholder="e.g. K7PJ3" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" required aria-describedby="room-hint" />
-      <p id="room-hint" class="hint">Enter the code shared by your host. Codes aren't checked against a server in this preview.</p>
+      <input id="room-code" name="roomCode" type="text" placeholder="e.g. 482916" inputmode="numeric" pattern="[0-9]{6}" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="6" required aria-describedby="room-hint" />
+      <p id="room-hint" class="hint">Enter a six-digit code. This preview can reopen rooms saved in this browser; shared online rooms are coming later.</p>
       <button class="primary" type="submit">Continue</button>
     </form>
 
@@ -162,191 +166,16 @@
       <button id="submit-entry" class="primary" type="submit">Join room</button>
     </form>
 
-    <section data-step="complete" hidden>
-      <p id="completion-message" class="summary" role="status"></p>
-      <button id="view-backdrop" class="primary" type="button">Join the room</button>
+    <section data-step="roomCode" hidden>
+      <p id="room-code-display" class="room-code-display"></p>
+      <button id="copy-room-code" class="primary" type="button">Copy room code</button>
+      <p id="copy-status" role="status"></p>
     </section>
-    <p class="preview">UI prototype · Bluesky import and live rooms are not connected yet.</p>
+    <p id="entry-error" role="alert"></p>
+    <p id="draft-status" role="status" class="hint"></p>
+    <p class="preview">Local preview ? Images and rooms stay in this browser. Shared rooms and multiplayer will need a backend.</p>
   </dialog>
   <noscript><p>Enable JavaScript to try the gallery popups.</p></noscript>
-  <script type="module">
-    const dialog = document.querySelector('#entry-dialog');
-    const world = document.querySelector('.world');
-    let galleryControls;
-    let playerController;
-    const resetPlayer = document.querySelector('#reset-player');
-    resetPlayer.addEventListener('click', () => {
-      if (!galleryControls || dialog.open) return;
-      if (playerController) { playerController.reset(); return; }
-      // Clear orbit momentum, then restore the saved starting position and zoom.
-      const damping = galleryControls.enableDamping;
-      galleryControls.enableDamping = false;
-      galleryControls.update();
-      galleryControls.reset();
-      galleryControls.enableDamping = damping;
-    });
-    function syncModalState() {
-      world.inert = dialog.open;
-      if (galleryControls) galleryControls.enabled = !dialog.open;
-    }
-    function openMenu() {
-      document.querySelector('#close-menu').hidden = !state.hasEnteredGallery;
-      dialog.showModal();
-      syncModalState();
-      showStep('welcome');
-    }
-    dialog.addEventListener('close', syncModalState);
-    new MutationObserver(syncModalState).observe(dialog, { attributes: true, attributeFilter: ['open'] });
-    const title = document.querySelector('#dialog-title');
-    const description = document.querySelector('#dialog-description');
-    const back = document.querySelector('#back');
-    const handle = document.querySelector('#bluesky-handle');
-    const code = document.querySelector('#room-code');
-    const username = document.querySelector('#username');
-    const artError = document.querySelector('#art-error');
-    const state = { step: 'welcome', mode: null, artworks: [], hasEnteredGallery: false };
-    function closeMenu() {
-      if (!state.hasEnteredGallery) return;
-      dialog.close();
-      syncModalState();
-      document.querySelector('#reopen').focus();
-    }
-    document.querySelector('#close-menu').addEventListener('click', closeMenu);
-    const copy = {
-      welcome: ['Welcome to the gallery', 'Step inside.', "Bring your art, or explore someone else's. How would you like to begin?"],
-      artwork: ['Create / 01', 'Bring your art.', 'Your Bluesky artwork will become an exhibition to explore together.'],
-      room: ['Join / 01', 'Find your people.', 'Every shared gallery starts with an invitation.'],
-      identity: ['Almost there / 02', 'Who’s visiting?', 'Choose a username before creating or joining a room.'],
-      complete: ['Preview complete', 'You’re ready.', 'This is where the live gallery will open once rooms are connected.'],
-    };
-
-    function showStep(step) {
-      state.step = step;
-      document.querySelectorAll('[data-step]').forEach(section => { section.hidden = section.dataset.step !== step; });
-      const [label, heading, intro] = copy[step];
-      document.querySelector('#step-label').textContent = label;
-      title.textContent = heading;
-      description.textContent = intro;
-      back.hidden = step === 'welcome';
-      if (step === 'identity') {
-        document.querySelector('#room-summary').textContent = state.mode === 'create'
-          ? `${state.artworks.length} sample artwork(s) selected. A shareable room code will be generated when the server creates your gallery.`
-          : `Room code: ${code.value}`;
-        document.querySelector('#submit-entry').textContent = state.mode === 'create' ? 'Create room' : 'Join room';
-      }
-      title.focus();
-    }
-
-    // Native modal behavior traps focus; the scene controls are also disabled.
-    dialog.addEventListener('cancel', event => {
-      event.preventDefault();
-      if (state.hasEnteredGallery) closeMenu();
-      else if (state.step !== 'welcome') goBack();
-    });
-    function goBack() {
-      if (state.step === 'complete') showStep('identity');
-      else if (state.step === 'identity') showStep(state.mode === 'create' ? 'artwork' : 'room');
-      else showStep('welcome');
-    }
-    back.addEventListener('click', goBack);
-    document.querySelector('#choose-create').addEventListener('click', () => { state.mode = 'create'; showStep('artwork'); });
-    document.querySelector('#choose-join').addEventListener('click', () => { state.mode = 'join'; showStep('room'); });
-
-    function trimmedValue(input, message) {
-      input.value = input.value.trim();
-      input.setCustomValidity(input.value ? '' : message);
-      return input.reportValidity();
-    }
-    [handle, code, username].forEach(input => input.addEventListener('input', () => input.setCustomValidity('')));
-    document.querySelector('#art-form').addEventListener('change', () => { artError.textContent = ''; });
-    document.querySelector('#art-form').addEventListener('submit', event => {
-      event.preventDefault();
-      if (!trimmedValue(handle, 'Enter your Bluesky handle.')) return;
-      state.artworks = Array.from(document.querySelectorAll('input[name="artwork"]:checked'), input => input.value);
-      if (!state.artworks.length) { artError.textContent = 'Choose at least one sample artwork to continue.'; return; }
-      showStep('identity');
-    });
-    document.querySelector('#room-form').addEventListener('submit', event => {
-      event.preventDefault();
-      if (!trimmedValue(code, 'Enter a room code, not just spaces.')) return;
-      code.value = code.value.toUpperCase();
-      code.setCustomValidity(/^[A-Z0-9]{1,12}$/.test(code.value) ? '' : 'Use only letters and numbers for the room code.');
-      if (!code.reportValidity()) return;
-      showStep('identity');
-    });
-    document.querySelector('#identity-form').addEventListener('submit', event => {
-      event.preventDefault();
-      if (!trimmedValue(username, 'Enter a username, not just spaces.')) return;
-      // No real room or code is created here. Replace this preview boundary
-      // with the server request, and enter the world only after it succeeds.
-      showStep('complete');
-      document.querySelector('#completion-message').textContent = state.mode === 'create'
-        ? `${username.value}, your gallery setup is ready. In the connected app, creating it will generate your room code. No room has been created in this preview.`
-        : `${username.value}, you’re ready to join ${code.value}. No server connection has been made in this preview.`;
-    });
-    document.querySelector('#view-backdrop').addEventListener('click', () => {
-      if (state.step !== 'complete') return;
-      state.hasEnteredGallery = true;
-      closeMenu();
-    });
-    document.querySelector('#reopen').addEventListener('click', openMenu);
-    openMenu();
-
-    async function startGallery() {
-      const status = document.querySelector('#world-status');
-      try {
-        // Plain static servers do not map Vite's public directory to the root.
-        if (!import.meta.env) {
-          const { DefaultLoadingManager } = await import('three');
-          DefaultLoadingManager.setURLModifier(url => url === '/models/gallery.glb'
-            ? new URL('./public/models/gallery.glb', document.baseURI).href
-            : url);
-        }
-        const [{ createScene }, { loadGallery }, { createPlayerController }, { createGhost }, { Box3, Vector3 }] = await Promise.all([
-          import('./src/scene/createScene.js'),
-          import('./src/scene/loadGallery.js'),
-          import('./src/player/createPlayerController.js'),
-          import('./src/player/ghost_mesh.js'),
-          import('three'),
-        ]);
-        const { scene, camera, controls, canvas, setUpdate, inspectionLighting } = createScene(document.querySelector('#viewport'));
-        galleryControls = controls;
-        syncModalState();
-        const { spawn } = await loadGallery(scene, inspectionLighting);
-    const placeholder = scene.getObjectByName('Player');
-    if (!placeholder || !spawn) throw new Error('The gallery needs Player and PlayerSpawn for ghost placement.');
-    // Use the authored reference character's feet as the requested spawn point.
-    // Update only the loaded scene; preserve the Blender file and anchor name.
-    const bounds = new Box3().setFromObject(placeholder);
-    const spawnPosition = bounds.getCenter(new Vector3());
-    spawnPosition.y = bounds.min.y;
-    spawn.position.copy(spawn.parent.worldToLocal(spawnPosition.clone()));
-    spawn.updateMatrixWorld(true);
-    const ghost = createGhost({ username: 'Guest' });
-    const ghostHeight = new Box3().setFromObject(ghost).getSize(new Vector3()).y;
-    ghost.scale.setScalar(bounds.getSize(new Vector3()).y / ghostHeight);
-    placeholder.removeFromParent();
-    scene.add(ghost);
-    playerController = createPlayerController({ scene, camera, controls, canvas,
-      player: ghost, spawn });
-    const restHeight = ghost.position.y;
-    let elapsed = 0;
-    setUpdate((delta) => {
-      playerController.update(delta);
-      elapsed += delta;
-      // Bob only the visual child so the movement pivot and camera stay level.
-      ghost.position.y = restHeight + 0.4 + Math.sin(elapsed * 1.8) * 0.18;
-    });
-
-        syncModalState();
-        status.hidden = true;
-        resetPlayer.disabled = false;
-      } catch (error) {
-        console.error('Gallery preview failed:', error);
-        status.textContent = `Unable to load the 3D gallery: ${error.message || String(error)}`;
-      }
-    }
-    startGallery();
-  </script>
+  <script type="module" src="./src/galleryEntry.js"></script>
 </body>
 </html>
