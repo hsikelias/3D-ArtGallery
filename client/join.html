@@ -1,0 +1,209 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Create or join a shared 3D art gallery." />
+  <title>Step inside — 3D Art Gallery</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #29332c; background: #e8e7df; line-height: 1.5; font-synthesis: none; }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible { outline: 3px solid #668348; outline-offset: 4px; }
+    .world { min-height: 100svh; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; background: linear-gradient(180deg, #efeee8 65%, #d1cdbf 65%); }
+    .brand { font-size: 0.8rem; font-weight: 750; letter-spacing: 0.15em; text-transform: uppercase; }
+    .wall { display: flex; justify-content: center; align-items: center; gap: 6vw; padding: 40px 0; }
+    .painting { width: 22vw; max-width: 260px; height: 32vw; max-height: 330px; border: 12px solid #fffaf0; box-shadow: 0 16px 30px #27332422; background: linear-gradient(35deg, #405e4b 40%, #b6be8d 40% 65%, #e0c9a0 65%); }
+    .painting:nth-child(2) { background: radial-gradient(circle at 55% 38%, #e5b378 0 23%, transparent 24%), linear-gradient(140deg, #9c604c 50%, #e4c6ad 50%); }
+    .painting:nth-child(3) { background: linear-gradient(155deg, #b4c5c8 40%, #607d87 40% 65%, #324854 65%); }
+    .world-footer { display: flex; justify-content: space-between; gap: 20px; align-items: end; }
+    .world-footer p { margin: 4px 0; }
+    .muted { color: #626b60; font-size: 0.88rem; }
+    dialog { width: min(540px, calc(100% - 32px)); max-height: calc(100svh - 32px); overflow-y: auto; padding: clamp(24px, 5vw, 40px); border: 1px solid #fff; border-radius: 24px; color: inherit; background: #fffef9; box-shadow: 0 24px 100px #1d2e3433; }
+    dialog::backdrop { background: #28392f55; backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px); }
+    .eyebrow { margin: 0 0 20px; color: #536849; font-size: 0.72rem; font-weight: 750; letter-spacing: 0.15em; text-transform: uppercase; }
+    h1 { margin: 0 0 14px; font-size: clamp(2rem, 6vw, 2.75rem); line-height: 1.12; letter-spacing: -0.045em; }
+    .intro { margin: 0 0 26px; color: #626b60; }
+    .choice { display: block; width: 100%; text-align: left; padding: 20px; margin-top: 12px; border: 1px solid #d7ddcf; border-radius: 12px; background: #f5f6ee; color: inherit; }
+    .choice:hover { border-color: #668348; background: #edf1e4; }
+    .choice strong { display: block; font-size: 1.05rem; margin-bottom: 5px; }
+    .choice span { display: block; font-size: 0.88rem; color: #626b60; }
+    .back { border: 0; padding: 0; margin: 0 0 22px; background: none; color: #506348; min-height: 32px; }
+    label { display: block; font-weight: 650; margin-bottom: 8px; }
+    input[type="text"] { width: 100%; min-height: 50px; border: 1px solid #9ca693; border-radius: 8px; padding: 12px; color: inherit; background: white; }
+    .hint { margin: 8px 0 24px; color: #626b60; font-size: 0.83rem; }
+    .primary, .secondary { padding: 13px 20px; min-height: 48px; border-radius: 8px; font-weight: 650; }
+    .primary { width: 100%; color: white; background: #35533b; border: 1px solid #35533b; }
+    .primary:hover { background: #29432e; }
+    .secondary { background: #fffef9; color: #35533b; border: 1px solid #9ca693; }
+    .preview { margin: 24px 0 0; padding-top: 16px; border-top: 1px solid #e2e5db; font-size: 0.78rem; color: #626b60; }
+    .summary { padding: 14px 16px; margin-bottom: 24px; border-radius: 8px; background: #edf1e4; overflow-wrap: anywhere; }
+    fieldset { padding: 0; border: 0; margin: 0 0 24px; }
+    legend { margin-bottom: 12px; font-weight: 650; }
+    .art-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .art { font-size: 0.8rem; font-weight: 500; cursor: pointer; }
+    .swatch { display: block; aspect-ratio: 1; border: 4px solid #e1e5d9; border-radius: 8px; margin-bottom: 8px; background: linear-gradient(35deg, #405e4b 40%, #b6be8d 40% 65%, #e0c9a0 65%); }
+    .sun { background: radial-gradient(circle, #e5b378 0 30%, #9c604c 31%); }
+    .sea { background: linear-gradient(155deg, #b4c5c8 40%, #607d87 40% 65%, #324854 65%); }
+    .art:has(input:checked) .swatch { border-color: #35533b; }
+    .art input { accent-color: #35533b; }
+    #art-error { color: #a32d28; font-size: 0.85rem; }
+    #completion-message { overflow-wrap: anywhere; }
+    @media (max-width: 420px) { .world-footer { flex-direction: column; align-items: start; } .art-grid { gap: 8px; } }
+  </style>
+</head>
+<body>
+  <!-- Visual placeholder only. The actual Three.js world will live behind this modal later. -->
+  <main class="world">
+    <div class="brand">The shared gallery</div>
+    <div class="wall" aria-hidden="true"><div class="painting"></div><div class="painting"></div><div class="painting"></div></div>
+    <div class="world-footer">
+      <div><p id="world-status">A space for art. A place for everyone.</p><p class="muted">Gallery backdrop preview · 3D movement and artwork interaction coming later.</p></div>
+      <button id="reopen" class="secondary" type="button">Open gallery menu</button>
+    </div>
+  </main>
+  <dialog id="entry-dialog" aria-labelledby="dialog-title" aria-describedby="dialog-description">
+    <button id="back" class="back" type="button" hidden>← Back</button>
+    <p id="step-label" class="eyebrow">Welcome to the gallery</p>
+    <h1 id="dialog-title" tabindex="-1">Step inside.</h1>
+    <p id="dialog-description" class="intro">Bring your art, or explore someone else's. How would you like to begin?</p>
+
+    <section data-step="welcome">
+      <button class="choice" id="choose-create" type="button"><strong>Create a gallery ↗</strong><span>Bring your artwork from Bluesky and invite people in.</span></button>
+      <button class="choice" id="choose-join" type="button"><strong>Join a room →</strong><span>Have an invitation? Enter your room code.</span></button>
+    </section>
+
+    <form data-step="artwork" id="art-form" hidden>
+      <label for="bluesky-handle">Your Bluesky handle</label>
+      <input id="bluesky-handle" name="handle" type="text" placeholder="you.bsky.social" autocomplete="off" maxlength="253" required aria-describedby="bluesky-hint" />
+      <p id="bluesky-hint" class="hint">Preview only: no Bluesky posts are fetched. Try the sample artwork below.</p>
+      <fieldset aria-describedby="art-error">
+        <legend>Choose sample artwork</legend>
+        <div class="art-grid">
+          <label class="art"><span class="swatch"></span><input type="checkbox" name="artwork" value="sample-garden" /> Garden</label>
+          <label class="art"><span class="swatch sun"></span><input type="checkbox" name="artwork" value="sample-sun" /> Sun</label>
+          <label class="art"><span class="swatch sea"></span><input type="checkbox" name="artwork" value="sample-sea" /> Sea</label>
+        </div>
+        <p id="art-error" role="alert"></p>
+      </fieldset>
+      <button class="primary" type="submit">Continue</button>
+    </form>
+
+    <form data-step="room" id="room-form" hidden>
+      <label for="room-code">Room code</label>
+      <input id="room-code" name="roomCode" type="text" placeholder="e.g. K7PJ3" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" required aria-describedby="room-hint" />
+      <p id="room-hint" class="hint">Enter the code shared by your host. Codes aren't checked against a server in this preview.</p>
+      <button class="primary" type="submit">Continue</button>
+    </form>
+
+    <form data-step="identity" id="identity-form" hidden>
+      <p id="room-summary" class="summary"></p>
+      <label for="username">Your username <span class="muted">(required)</span></label>
+      <input id="username" name="username" type="text" autocomplete="nickname" placeholder="What should we call you?" maxlength="24" required aria-describedby="username-hint" />
+      <p id="username-hint" class="hint">Use 1–24 characters. Other visitors will see this above your ghost.</p>
+      <button id="submit-entry" class="primary" type="submit">Join room</button>
+    </form>
+
+    <section data-step="complete" hidden>
+      <p id="completion-message" class="summary" role="status"></p>
+      <button id="view-backdrop" class="primary" type="button">View gallery preview</button>
+    </section>
+    <p class="preview">UI prototype · Bluesky import, live rooms and the 3D world are not connected yet.</p>
+  </dialog>
+  <noscript><p>Enable JavaScript to try the gallery popups.</p></noscript>
+  <script type="module">
+    const dialog = document.querySelector('#entry-dialog');
+    const title = document.querySelector('#dialog-title');
+    const description = document.querySelector('#dialog-description');
+    const back = document.querySelector('#back');
+    const handle = document.querySelector('#bluesky-handle');
+    const code = document.querySelector('#room-code');
+    const username = document.querySelector('#username');
+    const artError = document.querySelector('#art-error');
+    const state = { step: 'welcome', mode: null, artworks: [] };
+    const copy = {
+      welcome: ['Welcome to the gallery', 'Step inside.', "Bring your art, or explore someone else's. How would you like to begin?"],
+      artwork: ['Create / 01', 'Bring your art.', 'Your Bluesky artwork will become an exhibition to explore together.'],
+      room: ['Join / 01', 'Find your people.', 'Every shared gallery starts with an invitation.'],
+      identity: ['Almost there / 02', 'Who’s visiting?', 'Choose a username before creating or joining a room.'],
+      complete: ['Preview complete', 'You’re ready.', 'This is where the live gallery will open once rooms are connected.'],
+    };
+
+    function showStep(step) {
+      state.step = step;
+      document.querySelectorAll('[data-step]').forEach(section => { section.hidden = section.dataset.step !== step; });
+      const [label, heading, intro] = copy[step];
+      document.querySelector('#step-label').textContent = label;
+      title.textContent = heading;
+      description.textContent = intro;
+      back.hidden = step === 'welcome';
+      if (step === 'identity') {
+        document.querySelector('#room-summary').textContent = state.mode === 'create'
+          ? `${state.artworks.length} sample artwork(s) selected. A shareable room code will be generated when the server creates your gallery.`
+          : `Room code: ${code.value}`;
+        document.querySelector('#submit-entry').textContent = state.mode === 'create' ? 'Create room' : 'Join room';
+      }
+      title.focus();
+    }
+
+    // Native modal behavior traps focus and makes the backdrop inert.
+    // Future movement controls should also check whether this dialog is open.
+    dialog.addEventListener('cancel', event => {
+      event.preventDefault();
+      if (state.step !== 'welcome') goBack();
+    });
+    function goBack() {
+      if (state.step === 'complete') showStep('identity');
+      else if (state.step === 'identity') showStep(state.mode === 'create' ? 'artwork' : 'room');
+      else showStep('welcome');
+    }
+    back.addEventListener('click', goBack);
+    document.querySelector('#choose-create').addEventListener('click', () => { state.mode = 'create'; showStep('artwork'); });
+    document.querySelector('#choose-join').addEventListener('click', () => { state.mode = 'join'; showStep('room'); });
+
+    function trimmedValue(input, message) {
+      input.value = input.value.trim();
+      input.setCustomValidity(input.value ? '' : message);
+      return input.reportValidity();
+    }
+    [handle, code, username].forEach(input => input.addEventListener('input', () => input.setCustomValidity('')));
+    document.querySelector('#art-form').addEventListener('change', () => { artError.textContent = ''; });
+    document.querySelector('#art-form').addEventListener('submit', event => {
+      event.preventDefault();
+      if (!trimmedValue(handle, 'Enter your Bluesky handle.')) return;
+      state.artworks = Array.from(document.querySelectorAll('input[name="artwork"]:checked'), input => input.value);
+      if (!state.artworks.length) { artError.textContent = 'Choose at least one sample artwork to continue.'; return; }
+      showStep('identity');
+    });
+    document.querySelector('#room-form').addEventListener('submit', event => {
+      event.preventDefault();
+      if (!trimmedValue(code, 'Enter a room code, not just spaces.')) return;
+      code.value = code.value.toUpperCase();
+      code.setCustomValidity(/^[A-Z0-9]{1,12}$/.test(code.value) ? '' : 'Use only letters and numbers for the room code.');
+      if (!code.reportValidity()) return;
+      showStep('identity');
+    });
+    document.querySelector('#identity-form').addEventListener('submit', event => {
+      event.preventDefault();
+      if (!trimmedValue(username, 'Enter a username, not just spaces.')) return;
+      // No real room or code is created here. Replace this preview boundary
+      // with the server request, and enter the world only after it succeeds.
+      showStep('complete');
+      document.querySelector('#completion-message').textContent = state.mode === 'create'
+        ? `${username.value}, your gallery setup is ready. In the connected app, creating it will generate your room code. No room has been created in this preview.`
+        : `${username.value}, you’re ready to join ${code.value}. No server connection has been made in this preview.`;
+    });
+    document.querySelector('#view-backdrop').addEventListener('click', () => {
+      document.querySelector('#world-status').textContent = `Welcome, ${username.value} — this is your gallery preview.`;
+      dialog.close();
+      document.querySelector('#reopen').focus();
+    });
+    document.querySelector('#reopen').addEventListener('click', () => { dialog.showModal(); showStep('welcome'); });
+    dialog.showModal();
+    showStep('welcome');
+  </script>
+</body>
+</html>
