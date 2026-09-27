@@ -1,49 +1,23 @@
-:root {
-  font-family: system-ui, sans-serif;
-  color: #252b32;
-  background: #f5f3ed;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  line-height: 1.6;
-}
-
+﻿:root { font-family: system-ui, sans-serif; color: #252b32; background: #e7e5df; line-height: 1.5; }
 * { box-sizing: border-box; }
-
-body {
-  margin: 0;
-  min-width: 280px;
-  min-height: 100vh;
-}
-
-main {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: clamp(32px, 8vw, 100px) 24px;
-}
-
-.eyebrow {
-  color: #506348;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-h1 {
-  font-size: clamp(2.25rem, 6vw, 4.5rem);
-  line-height: 1.12;
-  letter-spacing: -0.045em;
-}
-
-.intro { font-size: 1.2rem; }
-
-section {
-  margin-top: 40px;
-  padding: 24px;
+body { margin: 0; }
+#viewport { width: 100%; height: 100vh; height: 100dvh; }
+canvas { display: block; }
+.panel {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: min(390px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 18px;
+  background: #fffef9ed;
   border: 1px solid #d8ddcf;
-  border-radius: 16px;
-  background: #fffef9;
+  border-radius: 12px;
+  font-size: 0.85rem;
 }
-
-h2 { margin-top: 0; }
-
-#setup-status { color: #355c36; font-weight: 600; }
+.eyebrow { margin: 0; color: #506348; font-weight: 700; }
+h1 { font-size: 1.3rem; margin: 6px 0; }
+button { padding: 8px 12px; font: inherit; cursor: pointer; }
+label { display: block; margin-top: 12px; }
+.error { color: #a12525; }
