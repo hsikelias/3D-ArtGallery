@@ -205,6 +205,7 @@ Next: connect the popup's selected image URLs to the existing artwork manager, c
 - `src/scene/createScene.js` creates the scene, perspective camera, renderer, resize handler, render loop, and temporary OrbitControls. Camera position and target are explicit values for the current export.
 - `src/scene/loadGallery.js` loads `/models/gallery.glb`, preserves its transforms and authored materials/lights, and logs object names, world spawn coordinates, dimensions, and imported lights.
 - `src/scene/configureGalleryPreview.js` gives meshes with no exported material a matte, double-sided preview material. It adds temporary point lights at LightBulb objects only if the GLB has no actual lights. Authored materials are not overwritten.
+- The ground uses a flat warm oak color (`FLOOR_COLOR = '#b08b53'` in `configureGalleryPreview.js`). The current Floor mesh also includes walls and ceilings, so only horizontal triangles within 0.05 gallery units of its lowest level receive that color. Walls and ceilings keep their neutral material; there is no texture or GLB change. The floor still responds to room lighting.
 - Click the gallery and use WASD to move the ghost, drag to orbit, scroll to zoom, and press Escape to release keyboard focus. Reset returns the player and camera to spawn; panning is disabled by the player controller.
 - Open browser developer tools (F12), then Console, to inspect the object table.
 - Confirm 15 artwork anchors and PlayerSpawn are reported. Resize the window and check the view is not stretched.
