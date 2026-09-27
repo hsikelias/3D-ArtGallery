@@ -65,7 +65,7 @@ test('create, name the ghost, reopen, and join a saved room without losing the a
     },
   });
   const source = (await readFile(new URL('../src/galleryEntry.js', import.meta.url), 'utf8'))
-    .replace(/^import .*;\n/gm, '');
+    .replace(/^import .*;\r?\n/gm, '');
   vm.runInContext(source + '\nglobalThis.ready = Promise.all([sceneReady, restoreDraft]);', context);
   await context.ready;
   const dialog = get('#entry-dialog');
