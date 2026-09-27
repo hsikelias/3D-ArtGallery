@@ -1,5 +1,43 @@
 # HackNite: 3D Art Gallery
 
+## Multiplayer checkpoint: two-tab movement (Stage 10)
+
+On `feature/multiplayer`, the first backend milestone is a separate cube test at `/multiplayer-test.html`. The gallery at `/` still uses the local room preview below. Host-only codes, username reservations, remote ghosts, and shared image uploads are subsequent milestones, not implemented by this checkpoint.
+
+Start two terminals from the repository root:
+
+```powershell
+cd server
+npm install
+npm run dev
+```
+
+```powershell
+cd client
+npm install
+npm run dev
+```
+
+Open the Vite URL with `/multiplayer-test.html` appended, then duplicate that tab. Each tab has its own connection and cube. Click the floor and use WASD or arrow keys; the outlined cube is yours. Both views should show the movement. Closing a tab removes its cube. Stop and restart the server to check reconnect behavior; this test creates a fresh player at spawn after reconnection. Press Escape to release the keyboard.
+
+The server listens on `127.0.0.1:3002` by default. Vite proxies `/socket.io` and `/api` to it, so no browser CORS setup is needed for local development. Restart Vite after pulling this configuration. The test requires Vite (or its preview server); a plain static-file server does not provide the socket proxy. A deployed site will need its own backend/proxy configuration.
+
+`server/app.js` owns the temporary player list, connection IDs, spawn positions and colors. It sends a complete snapshot on join and broadcasts join/move/leave messages within the `/movement-test` namespace. Movement packets are validated and limited to about 33 accepted updates per second per socket; the test client sends at most 20 per second and smooths remote movement. Position bounds are checked, but this is not a fully authoritative game simulation. There are no accounts, persisted sessions, room codes, uploads or voice chat on this server yet. All test state disappears on restart.
+
+`client/src/multiplayer/movementTest.js` draws cubes and applies incoming state; it never trusts a client-supplied player ID on the server. This connection setup follows the [Socket.IO HTTP server integration](https://socket.io/docs/v4/server-initialization/#with-an-http-server).
+
+Validation:
+
+```powershell
+cd server
+npm test
+# In the client directory:
+node --test test/*.test.js
+npm run build
+```
+
+The server integration test opens real WebSocket and polling clients and verifies movement, late-join snapshots, disconnect/reconnect cleanup, and rejection of invalid positions or spoofed identities. Browser visual verification remains a manual two-tab check.
+
 ## Local gallery rooms (`feature/join-name-ui`)
 
 Run `cd client` then `npm run dev` and open the displayed URL. Choose **Create a gallery**, select 1–15 JPG, PNG or WebP images (up to 2 MiB each), enter a username, and click **Create room**. Images are displayed in the frame positions from main, in selection order, without cropping. The username appears above the ghost.

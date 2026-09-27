@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multiplayer movement test — Gallery</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 15px/1.5 system-ui, sans-serif; color: #343541; background: #e8e7df; }
+    #test-viewport { position: fixed; inset: 0; }
+    canvas { display: block; }
+    canvas:focus-visible { outline: 3px solid #71628c; outline-offset: -4px; }
+    aside { position: absolute; top: 20px; left: 20px; width: min(350px, calc(100% - 40px)); padding: 20px; border: 2px solid #343541; border-radius: 12px; background: #ffffffed; box-shadow: 5px 5px #ddd5e8; max-height: calc(100dvh - 40px); overflow: auto; }
+    h1 { font-size: 1.25rem; margin: 0 0 12px; }
+    p { margin: 8px 0; }
+    a { color: #55516d; }
+    #players { padding-left: 20px; }
+    #connection { font-weight: 700; }
+    .hint { font-size: .82rem; color: #62616d; }
+  </style>
+</head>
+<body>
+  <main id="test-viewport" aria-label="Multiplayer cube test"></main>
+  <aside>
+    <h1>Two-tab movement test</h1>
+    <p id="connection" role="status">Connecting to the server…</p>
+    <p id="identity"></p>
+    <p>Duplicate this tab, then click the floor and use <strong>WASD</strong> or the arrow keys. Your cube has a dark outline.</p>
+    <p>Press <strong>Esc</strong> to release the keyboard.</p>
+    <p id="player-count" aria-live="polite"></p>
+    <ul id="players"></ul>
+    <p class="hint">Stage 10 test session. Room codes, host roles, gallery ghosts and shared artwork are not connected yet.</p>
+    <a href="/">Back to the gallery</a>
+  </aside>
+  <script type="module" src="./src/multiplayer/movementTest.js"></script>
+</body>
+</html>
