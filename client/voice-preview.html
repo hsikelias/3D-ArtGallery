@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nearby voices — Gallery audio preview</title>
+    <style>
+      :root { font: 16px/1.6 system-ui, sans-serif; color: #28392c; background: #f0f0e7; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100svh; padding: clamp(24px, 7vw, 80px); }
+      main { max-width: 860px; margin: auto; }
+      .eyebrow { font-size: .75rem; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; color: #587047; }
+      h1 { font-size: clamp(2.5rem, 7vw, 4rem); line-height: 1.06; letter-spacing: -.05em; margin: 20px 0; }
+      .intro { max-width: 550px; color: #64705f; }
+      .stage { position: relative; margin: 32px 0; min-height: 300px; padding: 28px; border-radius: 28px; background: radial-gradient(ellipse at 50% 80%, #617459, #24392d 80%); color: #f4f7ed; display: grid; place-items: center; }
+      .ghost { width: 66px; height: 86px; border-radius: 35px 35px 16px 16px; background: #d7e8c0; box-shadow: 0 16px 32px #0003; position: relative; margin: 16px auto 24px; }
+      .ghost::before, .ghost::after { content: ''; position: absolute; top: 28px; width: 7px; height: 11px; border-radius: 50%; background: #27362d; }
+      .ghost::before { left: 21px; } .ghost::after { right: 21px; }
+      .stage-caption { position: absolute; top: 18px; left: 24px; font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: #b6c6b0; }
+      .hud-wrap { width: fit-content; margin: auto; }
+      section { background: #fffef8; border: 1px solid #d8dfcf; padding: 24px; border-radius: 16px; margin-top: 20px; }
+      h2 { margin: 0 0 12px; font-size: 1.15rem; }
+      button { font: inherit; min-height: 44px; padding: 9px 16px; border-radius: 8px; border: 1px solid #38573d; color: #fff; background: #38573d; cursor: pointer; }
+      button:disabled { opacity: .55; cursor: default; }
+      button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid #7da15e; outline-offset: 4px; }
+      a { color: #355a3b; }
+      label { display: block; margin-top: 20px; }
+      input[type="range"] { width: 100%; accent-color: #537b42; }
+      .small { color: #64705f; font-size: .85rem; }
+      #connection-status { overflow-wrap: anywhere; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">The shared gallery / Audio lab</p>
+      <h1>A little closer.<br />A little louder.</h1>
+      <p class="intro">A microphone control for conversations inside the gallery. Click the mic to unmute; the green bar rises with your voice.</p>
+      <p id="mode" class="small">Local microphone preview. No other players are connected; your microphone is not played back or recorded.</p>
+      <div class="stage">
+        <span class="stage-caption">Proximity voice · UI preview</span>
+        <div><div class="ghost" aria-hidden="true"></div><div id="voice-hud" class="hud-wrap"></div></div>
+      </div>
+      <section>
+        <h2 id="mic-heading">Try your microphone</h2>
+        <p id="mic-instructions">Allow microphone access when prompted. Speak, then mute: the icon changes and the level drops to zero.</p>
+        <p class="small">Start muted every visit. Muting stops outgoing audio; leaving this page releases the microphone.</p>
+        <a id="mode-link" href="?source=tone">Use a synthetic microphone instead →</a>
+      </section>
+      <section id="test-panel" hidden>
+        <h2>Test the proximity connection</h2>
+        <p class="small">This mode generates a quiet pulsing tone. It never opens your microphone. Connect a second WebRTC peer on this page, then move it farther away to hear the fade.</p>
+        <button id="connect" type="button">Connect test listener</button>
+        <p id="connection-status" role="status">Test listener disconnected.</p>
+        <label for="distance">Distance: <output id="distance-value">6</output> gallery units</label>
+        <input id="distance" type="range" min="0" max="40" step="1" value="6" />
+        <p id="volume-readout" class="small">Distance volume: 100%</p>
+        <p class="small">Received audio level: <span id="received-level">0%</span></p>
+        <p id="connection-details" class="small">Audio transport has not started.</p>
+        <p class="small">Full volume through 6 units; silence at 30. These are configurable gallery units, not meters.</p>
+      </section>
+      <p class="small">Standalone feature branch. The multiplayer server still needs to relay voice signaling and provide player positions. This page does not modify or join a gallery room.</p>
+      <noscript>Enable JavaScript to use the voice controls.</noscript>
+    </main>
+    <script type="module" src="/src/voice/voicePreview.js"></script>
+  </body>
+</html>
