@@ -18,8 +18,21 @@ Movement and the third-person camera come from `origin/feature/player-movement`
 drag to orbit, scroll to zoom, and press Escape to release keyboard focus.
 Reset returns both the player and camera to the new spawn. Reload to generate a
 new pastel color. The outlined name follows the ghost; visual bobbing does not
-move the camera or player pivot. No multiplayer color assignment or wall/camera
-collision is connected yet. Next checkpoint: test movement, then add collision.
+move the camera or player pivot. Multiplayer color assignment is not connected yet.
+
+### Exterior collision (PLAN.md Stage 7)
+
+The ghost now collides with the eight outside wall segments, including the
+narrow entrance and its shoulders. Interior partitions remain passable by
+design. `exteriorCollision.js` stores the measured X/Z outline of this GLB;
+update it if the exterior is remodeled. The controller supplies the ghost's
+radius and resolves short movement steps independently along X/Z to slide along
+walls. Bobbing and camera orbit do not change the collision footprint.
+
+Run `node --test test/exteriorCollision.test.js` inside `client` for collision
+checks. In the browser, walk into each outside wall and corner, move diagonally
+along a wall, cross the entrance, and walk through the inside partitions.
+Camera collision remains a separate future feature. Stop here to review Stage 7.
 
 A browser-based multiplayer art gallery with colored ghost avatars. See [PLAN.md](PLAN.md) for the staged roadmap.
 

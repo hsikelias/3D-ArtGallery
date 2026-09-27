@@ -1,4 +1,5 @@
 import { Box3, Group, MathUtils, Quaternion, Vector3 } from 'three';
+import { canOccupy, moveWithinExterior } from './exteriorCollision.js';
 
 // PLAN.md sections 9–10. Based on origin/feature/player-movement (debba03).
 // Local movement only; the ghost model remains independent of this controller.
@@ -8,12 +9,19 @@ export function createPlayerController({ scene, camera, controls, canvas, player
 
   const bounds = new Box3().setFromObject(player);
   const height = bounds.getSize(new Vector3()).y;
+  const size = bounds.getSize(new Vector3());
+  // The circular footprint covers the skirt/eyes through every facing angle.
+  const radius = Math.max(size.x, size.z) / 2 + 0.08;
   const center = bounds.getCenter(new Vector3());
   const spawnPosition = spawn.getWorldPosition(new Vector3());
+  if (!canOccupy(spawnPosition.x, spawnPosition.z, radius)) {
+    throw new Error('PlayerSpawn does not fit inside the gallery exterior.');
+  }
   const up = new Vector3(0, 1, 0);
   const forward = new Vector3();
   const right = new Vector3();
   const direction = new Vector3();
+  const displacement = new Vector3();
   const target = new Vector3();
   const followOffset = new Vector3();
   const facing = new Quaternion();
@@ -87,7 +95,8 @@ export function createPlayerController({ scene, camera, controls, canvas, player
     direction.addScaledVector(right, Number(keys.has('KeyD')) - Number(keys.has('KeyA')));
     if (direction.lengthSq() > 0) {
       direction.normalize(); // Diagonals travel at the same speed as straight movement.
-      character.position.addScaledVector(direction, height * 2 * dt);
+      displacement.copy(direction).multiplyScalar(height * 2 * dt);
+      moveWithinExterior(character.position, displacement, radius);
       // ghost_mesh faces +Z in model space.
       facing.setFromAxisAngle(up, Math.atan2(direction.x, direction.z));
       character.quaternion.slerp(facing, 1 - Math.exp(-12 * dt));
