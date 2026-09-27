@@ -8,7 +8,7 @@ export async function createGalleryRuntime() {
         ? new URL('./public/models/gallery.glb', document.baseURI).href
         : url);
     }
-    const [{ createScene }, { loadGallery }, { createPlayerController }, { createGhost }, { Box3, Vector3 }] = await Promise.all([
+    const [{ createScene }, { loadGallery }, { createPlayerController }, { createGhost }, { Box3, Vector3, Group }] = await Promise.all([
       import('./scene/createScene.js'),
       import('./scene/loadGallery.js'),
       import('./player/createPlayerController.js'),
@@ -35,18 +35,69 @@ export async function createGalleryRuntime() {
     const playerController = createPlayerController({ scene, camera, controls, canvas,
       player: ghost, spawn });
     const restHeight = ghost.position.y;
+    const remotePlayers = new Map();
+    function removeRemote(id) {
+      const remote = remotePlayers.get(id);
+      if (!remote) return;
+      remote.pivot.removeFromParent();
+      remote.visual.traverse(object => {
+        if (object.isCSS2DObject) object.element.remove();
+        if (object.name === 'Ghost body') object.material.dispose();
+      });
+      remotePlayers.delete(id);
+    }
+    function addRemote(player) {
+      removeRemote(player.id);
+      const visual = createGhost(player);
+      visual.scale.copy(ghost.scale);
+      visual.position.copy(ghost.position);
+      const pivot = new Group();
+      pivot.add(visual);
+      pivot.position.set(player.x, player.y, player.z);
+      pivot.rotation.y = player.rotationY;
+      scene.add(pivot);
+      remotePlayers.set(player.id, { pivot, visual, target: pivot.position.clone(), rotationY: player.rotationY });
+    }
+    let networkUpdate = () => {};
     let elapsed = 0;
     setUpdate((delta) => {
       playerController.update(delta);
       elapsed += delta;
       // Bob only the visual child so the movement pivot and camera stay level.
       ghost.position.y = restHeight + 0.4 + Math.sin(elapsed * 1.8) * 0.18;
+      for (const remote of remotePlayers.values()) {
+        const amount = 1 - Math.exp(-14 * delta);
+        remote.pivot.position.lerp(remote.target, amount);
+        const angle = Math.atan2(Math.sin(remote.rotationY - remote.pivot.rotation.y), Math.cos(remote.rotationY - remote.pivot.rotation.y));
+        remote.pivot.rotation.y += angle * amount;
+        remote.visual.position.y = ghost.position.y;
+      }
+      networkUpdate(delta);
     });
 
     const { createArtworkManager } = await import('./artwork/artworkManager.js');
     const artworkManager = createArtworkManager({ scene, artSlots });
     status.hidden = true;
-    return { controls, playerController, artworkManager, ghost };
+    return {
+      controls, playerController, artworkManager, ghost,
+      setNetworkUpdate(callback) { networkUpdate = callback; },
+      removeRemote, addRemote,
+      clearRemote() { [...remotePlayers.keys()].forEach(removeRemote); },
+      moveRemote(player) {
+        const remote = remotePlayers.get(player.id);
+        if (!remote) return;
+        remote.target.set(player.x, player.y, player.z);
+        remote.rotationY = player.rotationY;
+      },
+      setIdentity(player) {
+        ghost.userData.username = player.username;
+        ghost.userData.color = player.color;
+        ghost.traverse(object => {
+          if (object.isCSS2DObject) { object.element.textContent = player.username; object.element.style.color = player.color; }
+          if (object.name === 'Ghost body') object.material.color.set(player.color);
+        });
+      },
+    };
   } catch (error) {
     console.error('Gallery preview failed:', error);
     status.hidden = false;

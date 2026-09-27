@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
+import { attachGalleryRooms } from './galleryRooms.js';
 
 export function validMovement(value) {
   return value !== null && typeof value === 'object'
@@ -10,16 +11,19 @@ export function validMovement(value) {
 
 // Stage 10: one temporary test session, separate from future gallery rooms.
 export function createMultiplayerServer() {
+  let galleries;
   const httpServer = createServer((request, response) => {
+    if (galleries?.serveArtwork(request, response)) return;
     if (request.method === 'GET' && request.url === '/api/health') {
       response.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-      response.end(JSON.stringify({ ok: true, stage: 'movement-test' }));
+      response.end(JSON.stringify({ ok: true, stage: 'gallery-multiplayer' }));
       return;
     }
     response.writeHead(404);
     response.end('Not found');
   });
-  const io = new Server(httpServer, { maxHttpBufferSize: 4096, serveClient: false });
+  const io = new Server(httpServer, { maxHttpBufferSize: 32 * 1024 * 1024, serveClient: false });
+  galleries = attachGalleryRooms(io);
   const session = io.of('/movement-test');
   const players = new Map();
   const slots = new Map();
@@ -63,6 +67,6 @@ export function createMultiplayerServer() {
   return {
     httpServer,
     io,
-    close: () => new Promise(resolve => io.close(resolve)),
+    close: () => new Promise(resolve => { galleries.dispose(); io.close(resolve); }),
   };
 }

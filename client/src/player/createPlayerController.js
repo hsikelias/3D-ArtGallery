@@ -122,5 +122,15 @@ export function createPlayerController({ scene, camera, controls, canvas, player
   }
 
   reset();
-  return { update, reset, dispose };
+  return {
+    update, reset, dispose,
+    getState() {
+      return { x: character.position.x, y: character.position.y, z: character.position.z,
+        rotationY: Math.atan2(Math.sin(character.rotation.y), Math.cos(character.rotation.y)) };
+    },
+    setSpawn(position) {
+      spawnPosition.set(position.x, position.y, position.z);
+      reset();
+    },
+  };
 }
