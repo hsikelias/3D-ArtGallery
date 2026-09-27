@@ -3,19 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HackNite - Gallery inspection</title>
+    <title>HackNite - Player movement</title>
   </head>
   <body>
     <main>
       <div id="viewport"></div>
       <section class="panel" aria-labelledby="gallery-heading">
-        <p class="eyebrow">HackNite / Stage 1</p>
-        <h1 id="gallery-heading">Gallery inspection</h1>
+        <p class="eyebrow">HackNite / Movement prototype</p>
+        <h1 id="gallery-heading">Third-person gallery</h1>
         <p id="setup-status" role="status">Loading the Blender gallery...</p>
         <p id="scene-details"></p>
-        <p>Drag to orbit / Scroll to zoom / Right-drag to pan</p>
-        <p>Free inspection camera: wall collision comes with the player controls.</p>
-        <button id="reset-view" type="button">Reset view</button>
+        <p>Click the gallery, then WASD to move / Drag to orbit / Scroll to zoom / Esc to release keyboard</p>
+        <p>Pastel ghost player. Wall and camera collision are not implemented yet.</p>
+        <button id="reset-view" type="button">Reset player &amp; camera</button>
         <label><input id="inspection-light" type="checkbox" checked /> Inspection lighting</label>
       </section>
       <noscript>Enable JavaScript to view the gallery.</noscript>

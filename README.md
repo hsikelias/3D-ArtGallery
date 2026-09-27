@@ -1,5 +1,26 @@
 # HackNite: 3D Art Gallery
 
+## Ghost model preview (`feature/ghost-mesh`)
+
+Following PLAN.md sections 8 and 14, `client/src/player/ghost_mesh.js` builds a
+reusable Pac-Man-style ghost with a rounded dome, cylindrical body, scalloped
+skirt, and eyes. Each instance has its own body material and an attached name
+label. The requested preview overrides the plan's static, solid, fixed-palette
+defaults: it uses a generated pastel hex color, 85% opacity, and gentle bobbing.
+The model file contains no movement or camera logic; preview bobbing and spawn
+placement live in `main.js`, and label rendering lives in `createScene.js`.
+
+Run `cd client` then `npm run dev`. The ghost replaces the Blender `Player`
+reference at its original floor position, with its height matched to that reference.
+`PlayerSpawn` is relocated there at runtime; the GLB stays unchanged.
+Movement and the third-person camera come from `origin/feature/player-movement`
+(`debba03`), following PLAN.md sections 9–10. Click the gallery and use WASD;
+drag to orbit, scroll to zoom, and press Escape to release keyboard focus.
+Reset returns both the player and camera to the new spawn. Reload to generate a
+new pastel color. The outlined name follows the ghost; visual bobbing does not
+move the camera or player pivot. No multiplayer color assignment or wall/camera
+collision is connected yet. Next checkpoint: test movement, then add collision.
+
 A browser-based multiplayer art gallery with colored ghost avatars. See [PLAN.md](PLAN.md) for the staged roadmap.
 
 ## Current milestone: Stage 1
