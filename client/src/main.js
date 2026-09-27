@@ -1,16 +1,21 @@
 ﻿import { createScene } from './scene/createScene.js';
 import { loadGallery } from './scene/loadGallery.js';
+import { createPlayerController } from './player/createPlayerController.js';
 import './style.css';
 
 const status = document.querySelector('#setup-status');
 async function start() {
   try {
-    const { scene, controls, inspectionLighting } = createScene(document.querySelector('#viewport'));
-    document.querySelector('#reset-view').addEventListener('click', () => controls.reset());
+    const { scene, camera, controls, canvas, setUpdate, inspectionLighting } = createScene(document.querySelector('#viewport'));
+    let playerController;
+    document.querySelector('#reset-view').addEventListener('click', () => playerController?.reset());
     document.querySelector('#inspection-light').addEventListener('change', (event) => {
       inspectionLighting.visible = event.target.checked;
     });
     const { artSlots, spawn, lights, size, warnings } = await loadGallery(scene, inspectionLighting);
+    playerController = createPlayerController({ scene, camera, controls, canvas,
+      player: scene.getObjectByName('Player'), spawn });
+    setUpdate(playerController.update);
     status.textContent = `Gallery loaded: ${artSlots.length} artwork anchors, ` +
       `PlayerSpawn ${spawn ? 'found' : 'missing'}, ${lights.length} imported lights.`;
     document.querySelector('#scene-details').textContent =

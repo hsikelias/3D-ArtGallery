@@ -30,9 +30,14 @@ export function createScene(container) {
   }
   window.addEventListener('resize', resize);
   resize();
-  renderer.setAnimationLoop(() => {
-    controls.update();
+  let update = () => controls.update();
+  let previousTime;
+  renderer.setAnimationLoop((time) => {
+    const delta = previousTime === undefined ? 0 : Math.min((time - previousTime) / 1000, 0.05);
+    previousTime = time;
+    update(delta);
     renderer.render(scene, camera);
   });
-  return { scene, controls, inspectionLighting };
+  return { scene, camera, controls, inspectionLighting, canvas: renderer.domElement,
+    setUpdate(callback) { update = callback; } };
 }
