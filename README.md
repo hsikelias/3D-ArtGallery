@@ -1,8 +1,18 @@
 # HackNite: 3D Art Gallery
 
-## Artwork planes (`feature/artwork-placement`)
+## Local gallery rooms (`feature/join-name-ui`)
 
-The gallery displays 15 supplied JPEG/PNG artworks on `ArtSlot_01` through `ArtSlot_15`. Landscape and portrait images keep their original proportions. The status panel should report `15 artworks loaded`.
+Run `cd client` then `npm run dev` and open the displayed URL. Choose **Create a gallery**, select 1–15 JPG, PNG or WebP images (up to 2 MiB each), enter a username, and click **Create room**. Images are displayed in the frame positions from main, in selection order, without cropping. The username appears above the ghost.
+
+The bottom-left controls reset the player/camera, reopen the gallery menu, and show or copy a stable six-digit room code. The menu can be dismissed after entering a room. Movement is blocked and the scene is blurred whenever the menu is open.
+
+Uploaded files and the artist draft are stored in IndexedDB on this browser and origin. **Join a room** can reopen those saved rooms by code, including after refresh. This is a frontend preview: codes do not connect other devices, images are not uploaded to a server, and other visitors are not synchronized. Clearing site storage removes drafts and rooms. Storage failures are reported without silently pretending a room was saved.
+
+`src/rooms/localRooms.js` is the persistence boundary to replace with a backend API. `src/galleryEntry.js` manages forms and room transitions; `src/galleryRuntime.js` starts the scene, player, and artwork renderer. Tests: `node --test test/*.test.js` from `client`.
+
+## Artwork renderer and development fixtures
+
+The renderer supports `ArtSlot_01` through `ArtSlot_15`. Landscape and portrait images keep their original proportions. The following supplied images remain as development fixtures; the entry page displays the artist's uploads instead.
 
 | Slot | Artwork filename |
 | --- | --- |
@@ -26,7 +36,7 @@ To use your own test artwork:
 
 1. Copy JPEG/PNG files into `client/public/test-art/`.
 2. Edit the filename list in `client/src/artwork/testImages.js`, for example `my-painting.jpg`. Use the exact filenames, including capitalization and extension. Spaces are encoded automatically when building the URLs. Adding a file alone does not add it to the selection.
-3. Run `cd client` then `npm run dev`. Refresh and check the artwork count in the status panel.
+3. The legacy `src/main.js` inspection entry uses this fixture list. The main page uses uploads through the popup instead.
 4. Image order maps to slot order. Supply up to 15 URLs; fewer images leave the remaining slots empty. Failed images leave their assigned slot empty and report details in the console.
 
 The renderer uses front-facing image planes on brown rectangular backings. Image aspect ratios are preserved within an 8-by-8-unit display limit; no cropping or stretching occurs. Each backing adds a 0.25-unit border on every edge (0.5 extra total width and height) and has a tuned depth of 0.25 units. The backing stays in front of the wall, with its image surface projecting into the room. The image sits 0.01 units in front of the backing to avoid flickering. Tune `artworkFrame` in `src/artwork/imagePlacement.js` to change the border, depth, or brown color. These dimensions are gallery units, independent of image pixel resolution. Artwork uses an unlit material so gallery preview lighting does not obscure its colors; the brown backing responds to scene lighting.
