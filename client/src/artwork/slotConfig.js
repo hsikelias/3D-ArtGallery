@@ -1,6 +1,7 @@
 // World-space facing directions for the current gallery.glb.
 // A Three.js plane faces local +Z. These rotations point it into the room.
 // Width/height are display limits in gallery units, not image pixels.
+// wallOffset measures clearance behind the backing; frame depth projects outward.
 const slot = (rotationY) => ({ maxWidth: 8, maxHeight: 8, rotationY, wallOffset: 0.12 });
 
 export const slotConfig = {
