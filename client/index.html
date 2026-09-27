@@ -1,22 +1,24 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="A multiplayer 3D art gallery built by the HackNite team." />
-    <title>HackNite — 3D Art Gallery</title>
+    <title>HackNite - Gallery inspection</title>
   </head>
   <body>
-    <main id="app">
-      <p class="eyebrow">HackNite / Stage 0</p>
-      <h1>A space for art.<br />A place to explore together.</h1>
-      <p class="intro">Our multiplayer 3D gallery starts here.</p>
-      <section aria-labelledby="setup-heading">
-        <h2 id="setup-heading">Project setup</h2>
-        <p id="setup-status" role="status">Loading JavaScript and Three.js…</p>
-        <p>Next milestone: load the Blender gallery into the browser.</p>
+    <main>
+      <div id="viewport"></div>
+      <section class="panel" aria-labelledby="gallery-heading">
+        <p class="eyebrow">HackNite / Stage 1</p>
+        <h1 id="gallery-heading">Gallery inspection</h1>
+        <p id="setup-status" role="status">Loading the Blender gallery...</p>
+        <p id="scene-details"></p>
+        <p>Drag to orbit / Scroll to zoom / Right-drag to pan</p>
+        <p>Free inspection camera: wall collision comes with the player controls.</p>
+        <button id="reset-view" type="button">Reset view</button>
+        <label><input id="inspection-light" type="checkbox" checked /> Inspection lighting</label>
       </section>
-      <noscript>Enable JavaScript to run the gallery.</noscript>
+      <noscript>Enable JavaScript to view the gallery.</noscript>
     </main>
     <script type="module" src="/src/main.js"></script>
   </body>
