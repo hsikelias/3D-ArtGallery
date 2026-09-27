@@ -1,5 +1,6 @@
 import { createGalleryRuntime } from './galleryRuntime.js';
 import { localRooms, MAX_IMAGES, validateImage, isRoomCode } from './rooms/localRooms.js';
+import { createGalleryConnection } from './multiplayer/galleryConnection.js';
 
 const $ = selector => document.querySelector(selector);
 const dialog = $('#entry-dialog');
@@ -10,15 +11,16 @@ const picker = $('#image-files');
 const error = $('#entry-error');
 const state = { step: 'welcome', mode: null, images: [], room: null, busy: false };
 let runtime;
+let connection;
 let previewUrls = [];
 let draftWrites = Promise.resolve();
 let restoreDraft = Promise.resolve();
 const copy = {
   welcome: ['Welcome to the gallery', 'Step inside.', "Bring your art, or explore someone else's. How would you like to begin?"],
   artwork: ['Create / 01', 'Bring your art.', 'Upload your images to hang in the gallery.'],
-  room: ['Join / 01', 'Find your people.', 'Enter the six-digit code for a saved room.'],
+  room: ['Join / 01', 'Find your people.', 'Enter the six-digit code shared by the artist.'],
   identity: ['Almost there / 02', 'Who’s visiting?', 'Your username will appear above your ghost.'],
-  roomCode: ['Your gallery', 'Invite people in.', 'Your room code stays the same each time you open this panel. Online sharing is coming later.'],
+  roomCode: ['Your gallery', 'Invite people in.', 'Share this website and code so visitors can join you.'],
 };
 
 function syncModal() {
@@ -146,17 +148,12 @@ $('#room-form').addEventListener('submit', event => {
 });
 
 async function displayRoom(room) {
-  const urls = room.images.map(file => URL.createObjectURL(file));
-  try {
-    const result = await runtime.artworkManager.setImages(urls);
-    if (result.errors.length) throw new Error('Some artwork could not be displayed. Please try again.');
-  } finally { urls.forEach(url => URL.revokeObjectURL(url)); }
+  const result = await runtime.artworkManager.setImages(room.artworks);
+  if (result.errors.length) showConnectionStatus('Connected, but some artwork could not load. Check your connection and rejoin.');
 }
-function setGhostName(name) {
-  runtime.ghost.userData.username = name;
-  runtime.ghost.traverse(object => {
-    if (object.isCSS2DObject) object.element.textContent = name;
-  });
+function showConnectionStatus(message) {
+  $('#world-status').hidden = !message;
+  $('#world-status').textContent = message;
 }
 $('#identity-form').addEventListener('submit', async event => {
   event.preventDefault();
@@ -165,29 +162,20 @@ $('#identity-form').addEventListener('submit', async event => {
   if (!username.value) { error.textContent = 'Enter a username.'; username.focus(); return; }
   error.textContent = '';
   setBusy(true);
-  const previous = state.room;
   try {
     await sceneReady;
     let room;
     if (state.mode === 'create') {
       await saveDraft();
-      room = await localRooms.createRoom({ username: username.value, images: state.images });
+      room = await connection.create({ username: username.value, images: state.images });
     } else {
-      room = await localRooms.getRoom(code.value);
-      if (!room) throw new Error('Room not found in this browser. Create a local room first. Joining rooms on other devices needs the upcoming backend.');
+      room = await connection.join({ username: username.value, code: code.value });
     }
     await displayRoom(room);
-    setGhostName(username.value);
-    runtime.playerController.reset();
-    state.room = room;
-    $('#show-room-code').disabled = false;
     setBusy(false);
     closeMenu();
   } catch (failure) {
     error.textContent = failure.message || 'Could not open the room. Please try again.';
-    if (previous && runtime) {
-      try { await displayRoom(previous); } catch { error.textContent += ' Previous artwork could not be restored; reopen your saved room.'; }
-    }
   } finally { setBusy(false); }
 });
 
@@ -208,7 +196,7 @@ dialog.addEventListener('close', syncModal);
 $('#reopen').addEventListener('click', () => openMenu());
 $('#reset-player').addEventListener('click', () => { if (!dialog.open) runtime?.playerController.reset(); });
 $('#show-room-code').addEventListener('click', () => {
-  if (!state.room) return;
+  if (state.room?.role !== 'host') return;
   $('#room-code-display').textContent = state.room.code;
   $('#copy-status').textContent = '';
   openMenu('roomCode');
@@ -223,6 +211,24 @@ $('#copy-room-code').addEventListener('click', async () => {
 openMenu();
 const sceneReady = createGalleryRuntime().then(result => {
   runtime = result;
+  // PLAN.md Stages 11–14: server membership is the source of room/player state.
+  // IndexedDB is used only for the artist's draft, never for joining a room.
+  connection = createGalleryConnection(runtime, {
+    onStatus: showConnectionStatus,
+    onSession(room) {
+      state.room = room;
+      $('#show-room-code').hidden = room.role !== 'host';
+      $('#show-room-code').disabled = room.role !== 'host';
+    },
+    onExpired(message) {
+      state.room = null;
+      runtime.artworkManager.clear();
+      $('#show-room-code').hidden = true;
+      openMenu();
+      error.textContent = message;
+      showConnectionStatus('Disconnected. Join or create a room to continue.');
+    },
+  });
   syncModal();
   $('#reset-player').disabled = false;
 });
@@ -234,5 +240,5 @@ restoreDraft = localRooms.getDraft().then(draft => {
   if (!username.value) username.value = draft.username || '';
   renderPreviews();
   $('#draft-status').textContent = 'Your saved artist draft has been restored.';
-}).catch(() => { $('#draft-status').textContent = 'Browser storage is unavailable. Enable site storage to save drafts and create local rooms.'; });
+}).catch(() => { $('#draft-status').textContent = 'Draft storage is unavailable. You can still create or join an online room.'; });
 window.addEventListener('pagehide', () => previewUrls.forEach(url => URL.revokeObjectURL(url)));

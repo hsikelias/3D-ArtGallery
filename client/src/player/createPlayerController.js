@@ -25,6 +25,7 @@ export function createPlayerController({ scene, camera, controls, canvas, player
   const target = new Vector3();
   const followOffset = new Vector3();
   const facing = new Quaternion();
+  const networkForward = new Vector3();
   const keys = new Set();
   const movementKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD']);
 
@@ -122,5 +123,19 @@ export function createPlayerController({ scene, camera, controls, canvas, player
   }
 
   reset();
-  return { update, reset, dispose };
+  return {
+    update, reset, dispose,
+    getState() {
+      // Euler XYZ can represent a half-turn using X/Z flips and a small Y.
+      // Extract heading from the quaternion so remote ghosts face correctly.
+      networkForward.set(0, 0, 1).applyQuaternion(character.quaternion);
+      return { x: character.position.x, y: character.position.y, z: character.position.z,
+        rotationY: Math.atan2(networkForward.x, networkForward.z) };
+    },
+    setSpawn(position) {
+      spawnPosition.set(position.x, position.y, position.z);
+      reset();
+      character.rotation.y = position.rotationY ?? 0;
+    },
+  };
 }

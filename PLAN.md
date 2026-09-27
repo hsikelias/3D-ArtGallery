@@ -434,7 +434,7 @@ Accept different image aspect ratios and fit them automatically using Section 6.
 
 Local previews can use `URL.createObjectURL(file)`. Revoke these URLs when their previews/textures are no longer needed. This is local file selection, not yet an upload to shared storage.
 
-For multiplayer, the selected files must be uploaded to a server or storage service that every joining browser can access. Use the returned shared URLs in room data. A creator's local `blob:` URLs cannot be shared as working image URLs with other players. Implement this shared upload step with Stage 14; the deployment/storage choice remains to be decided.
+For multiplayer, the selected files must be uploaded to a server or storage service that every joining browser can access. Use the returned shared URLs in room data. A creator's local `blob:` URLs cannot be shared as working image URLs with other players. The Stage 14 demo now uploads bytes to a single Node server and serves shared HTTP URLs from memory. Rooms and uploads do not survive a server restart; durable storage is a future step. See MULTIPLAYER.md for deployment and rehearsal instructions.
 
 The first placement logic can still remain simple:
 
@@ -586,6 +586,11 @@ Every browser loads the same gallery GLB locally.
 
 # 12. Multiplayer Player State
 
+Current room rule: the artist/host's name is reserved for that room's lifetime.
+The server rejects guests using that name, ignoring case, surrounding whitespace,
+repeated internal whitespace, and Unicode compatibility differences. Active and
+temporarily reconnecting guest names are also reserved within their room.
+
 An early multiplayer packet may look like:
 
 ```js
@@ -602,7 +607,7 @@ An early multiplayer packet may look like:
 
 Do not overcomplicate this schema initially.
 
-Use `id` to identify players internally, since usernames may be duplicated. `color` is the ghost's body color.
+Use `id` to identify players internally; usernames may repeat across different rooms. `color` is the ghost's body color.
 
 Send username and color with spawn/join information, including the existing player list for a new arrival. Regular movement updates need only the player ID, position, and rotation; they do not need to resend appearance data or any animation state.
 
