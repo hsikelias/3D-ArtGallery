@@ -26,7 +26,7 @@ Do not build advanced features before the earlier stage is working.
 
 The project is a **multiplayer 3D art gallery in the browser**.
 
-Instead of viewing an artist's work in a normal social-media feed or portfolio grid, users enter a stylized 3D gallery and walk around it as a small low-poly humanoid/animal character.
+Instead of viewing an artist's work in a normal social-media feed or portfolio grid, users enter a stylized 3D gallery and move around it as a simple ghost avatar. Keyboard input moves the ghost, and mouse movement controls the camera view. The ghost has no character animations.
 
 A gallery owner should eventually be able to:
 
@@ -137,9 +137,8 @@ Three.js is responsible for:
 - loading GLB / glTF assets
 - camera movement
 - third-person camera behavior
-- character movement
-- character rotation
-- playing character animations
+- ghost movement
+- ghost rotation
 - displaying artwork textures
 - positioning artwork at Blender anchors
 - lighting adjustments
@@ -207,39 +206,13 @@ Blender should contain:
 - player spawn anchor
 - optional collision geometry
 
-## Character
+## Ghost Avatar
 
-- one low-poly humanoid / animal character
-- one armature / skeleton
-- Idle animation
-- Walk animation
-- Run animation
+Each user is represented by a simple ghost with no character animations.
 
-The current character workflow is:
+The ghost can be built from simple Three.js geometry or loaded as a static `ghost.glb` asset. A custom Blender character is not required.
 
-```text
-Mixamo FBX
-    ↓
-Blender
-    ↓
-combine animations onto one character rig
-    ↓
-export one GLB
-    ↓
-Three.js
-```
-
-The final web character should ideally be:
-
-```text
-character.glb
-├── character mesh
-├── armature
-└── animations
-    ├── Idle
-    ├── Walk
-    └── Run
-```
+No Mixamo workflow, armature, skeleton, rigging, or Idle/Walk/Run clips are needed. Three.js moves and rotates the whole ghost directly in response to user input.
 
 ---
 
@@ -446,9 +419,9 @@ Smarter curation / rearranging can come later.
 
 ---
 
-# 8. Character System
+# 8. Ghost Avatar System
 
-For the first version, every player uses the **same character model**.
+For the first version, every player uses the **same simple ghost avatar**.
 
 Users do not need character customization.
 
@@ -458,13 +431,7 @@ Players can be distinguished using:
 - name-tag color
 - possibly a body/material color later
 
-The character needs only:
-
-```text
-Idle
-Walk
-Run
-```
+The ghost is a static visual object. It has no Idle, Walk, Run, bobbing, or other character animations. Movement changes its position directly.
 
 No jump is required initially.
 
@@ -476,47 +443,21 @@ No inventory.
 
 ---
 
-# 9. Character Animation Logic
+# 9. Ghost Movement Logic
 
-Three.js uses `AnimationMixer`.
-
-Conceptually:
+Three.js updates the ghost's position from keyboard input each frame.
 
 ```text
-player not moving
-    ↓
-Idle
-
-player moving normally
-    ↓
-Walk
-
-player holding run key
-    ↓
-Run
+no movement input → remain stationary
+WASD → move the ghost
+mouse movement → rotate the camera view
 ```
 
-Do not network-sync every bone.
+Movement is relative to the camera's horizontal direction. Looking up or down does not make the ghost fly; it moves around the gallery at a fixed height above the floor and respects collision boundaries.
 
-Multiplayer only needs to communicate:
+Shift may increase movement speed, but does not trigger an animation.
 
-```text
-animation: "Idle"
-```
-
-or:
-
-```text
-animation: "Walk"
-```
-
-or:
-
-```text
-animation: "Run"
-```
-
-Each browser plays that animation locally.
+No `AnimationMixer`, animation clips, or animation state machine is needed. Multiplayer synchronizes position and rotation; there is no animation state to send or play.
 
 ---
 
@@ -537,7 +478,7 @@ WASD
       ↓
 move relative to camera direction
 
-character
+ghost
       ↓
 rotate toward movement direction
 ```
@@ -547,12 +488,12 @@ Important:
 ```text
 camera rotation
 !=
-character rotation
+ghost rotation
 ```
 
-The player should be able to rotate the camera around a stationary character.
+The player should be able to rotate the camera around a stationary ghost.
 
-When movement begins, the character should rotate toward the movement direction.
+When movement begins, the ghost should rotate toward the movement direction.
 
 The camera should smoothly follow the player.
 
@@ -579,7 +520,6 @@ The server handles:
 - usernames
 - player positions
 - player rotations
-- animation states
 - spawn/despawn events
 - room information
 - WebRTC signaling later
@@ -602,7 +542,6 @@ An early multiplayer packet may look like:
   y: 0,
   z: -2.1,
   rotationY: 1.4,
-  animation: "Walk",
   nameColor: "#ff77aa"
 }
 ```
@@ -631,13 +570,13 @@ Socket.IO messages
 movement
 ```
 
-Both can still reuse much of the same character code.
+Both can still reuse much of the same ghost avatar code.
 
 ---
 
 # 14. Name Tags
 
-Each player should display their username above their character.
+Each player should display their username above their ghost.
 
 A simple implementation can use:
 
@@ -651,7 +590,7 @@ Example:
 
 ```text
        Vann
-        🐻
+        👻
 ```
 
 Different name colors can distinguish players before character customization exists.
@@ -727,7 +666,7 @@ project/
 │   ├── public/
 │   │   ├── models/
 │   │   │   ├── gallery.glb
-│   │   │   └── character.glb
+│   │   │   └── ghost.glb (optional static asset)
 │   │   │
 │   │   └── test-art/
 │   │
@@ -741,7 +680,6 @@ project/
 │       ├── player/
 │       │   ├── createPlayer.js
 │       │   ├── movement.js
-│       │   ├── animations.js
 │       │   └── camera.js
 │       │
 │       ├── artwork/
@@ -874,7 +812,7 @@ scene.add(gltf.scene);
 
 Position the development camera manually.
 
-Do not build the character controller yet.
+Do not build the ghost controller yet.
 
 Use a temporary camera position that lets the team inspect the room.
 
@@ -984,29 +922,26 @@ Several real images appear correctly on the gallery walls.
 
 ---
 
-# STAGE 4 — Load the Character
+# STAGE 4 — Create the Ghost Avatar
 
 ## Goal
 
-Put the real character in the gallery.
+Put a simple ghost avatar in the gallery.
 
 ## Tasks
 
-1. finish Blender character file
-2. combine Idle, Walk and Run onto one rig
-3. export `character.glb`
-4. load GLB with Three.js
-5. inspect available animations
-6. place character at `PlayerSpawn`
-7. play Idle animation
+1. create a simple ghost using Three.js geometry, or load a static `ghost.glb`
+2. set its scale and height relative to the gallery floor
+3. place the ghost at `PlayerSpawn`
+4. confirm that the ghost renders correctly without rigging or animation setup
 
 ## Success Condition
 
-The character stands inside the gallery at the intended spawn point and continuously plays Idle.
+The ghost appears inside the gallery at the intended spawn point and remains stationary until movement input is implemented.
 
 ---
 
-# STAGE 5 — Character Movement
+# STAGE 5 — Ghost Movement
 
 ## Goal
 
@@ -1016,22 +951,21 @@ Walk around the gallery.
 
 1. keyboard input
 2. WASD movement
-3. character translation
-4. smooth character rotation
-5. Shift to run
-6. animation state switching
+3. ghost translation at a fixed height above the floor
+4. smooth ghost rotation toward movement
+5. optional Shift speed boost
 
 Pseudo state:
 
 ```text
-no movement → Idle
-movement → Walk
-Shift + movement → Run
+no movement input → stationary ghost
+WASD → moving ghost
+Shift + movement → faster movement, if enabled
 ```
 
 ## Success Condition
 
-One user can walk and run through the gallery.
+One user can move the ghost through the gallery using keyboard input, with no character animations.
 
 ---
 
@@ -1049,13 +983,13 @@ Make the gallery feel like a small third-person game.
 4. camera orbit around player
 5. smooth camera movement
 6. movement relative to camera direction
-7. character rotates toward movement
+7. ghost rotates toward movement
 
 ## Success Condition
 
 The user can:
 
-- rotate camera around character
+- rotate camera around ghost
 - move based on camera direction
 - explore gallery comfortably
 
@@ -1187,7 +1121,7 @@ Connect two browser tabs.
 
 Start with cubes.
 
-Do not immediately synchronize animated characters.
+Prove movement synchronization with cubes before connecting the ghost avatars.
 
 ## Server
 
@@ -1227,25 +1161,24 @@ Two browser windows show two independently moving objects.
 
 ---
 
-# STAGE 11 — Multiplayer Characters
+# STAGE 11 — Multiplayer Ghosts
 
 ## Goal
 
-Replace network cubes with actual player models.
+Replace network cubes with the simple ghost avatars.
 
 ## Tasks
 
 1. create remote player instances
-2. show same low-poly animal model for everyone
+2. show the same simple ghost for everyone
 3. sync position
 4. sync rotation
-5. sync animation name
-6. interpolate remote movement
-7. remove character on disconnect
+5. interpolate remote movement
+6. remove the ghost on disconnect
 
 ## Success Condition
 
-Two people enter the room and see each other's animated characters walking.
+Two people enter the room and see each other's ghosts moving smoothly. No character animation data is synchronized.
 
 ---
 
@@ -1265,7 +1198,7 @@ Example:
 
 ```text
        Alex
-        🐻
+        👻
 ```
 
 Do not build full character customization.
@@ -1375,7 +1308,7 @@ Only after the core loop works.
 Possible polish:
 
 - improved lighting
-- better character transitions
+- smoother ghost movement and camera controls
 - props
 - loading screen
 - smoother networking
@@ -1407,8 +1340,7 @@ A possible responsibility split:
 
 ## Person B — Player
 
-- character GLB
-- animations
+- simple ghost geometry or static ghost GLB
 - movement
 - camera
 - collision
@@ -1505,7 +1437,7 @@ Good task:
 
 Bad task:
 
-> Build gallery, multiplayer, character movement, Bluesky, and voice chat.
+> Build gallery, multiplayer, ghost movement, Bluesky, and voice chat.
 
 ---
 
@@ -1578,7 +1510,7 @@ These names form a contract between Blender and Three.js.
 
 ## RULE 9 — Build With Temporary Objects When Dependencies Are Missing
 
-If the character is not ready:
+If the ghost avatar is not ready:
 
 ```text
 use a cube
@@ -1590,7 +1522,7 @@ If final artwork isn't ready:
 use test images
 ```
 
-If multiplayer characters aren't ready:
+If multiplayer ghosts aren't ready:
 
 ```text
 network cubes
@@ -1635,8 +1567,8 @@ Blender anchors work
       ↓
  ┌───────────────┐
  ↓               ↓
-Artwork       Character
-system         loader
+Artwork        Ghost
+system         avatar
                  ↓
               movement
                  ↓
@@ -1651,7 +1583,7 @@ system         loader
          ↓
    Multiplayer cubes
          ↓
-Multiplayer characters
+Multiplayer ghosts
          ↓
       Room codes
          ↓
@@ -1765,7 +1697,7 @@ Person A
 gallery / lighting / Blender fixes
 
 Person B
-character loading + movement
+ghost avatar + movement
 
 Person C
 artwork placement + selection
@@ -1785,7 +1717,6 @@ Think of the system as four layers.
 visual world
 models
 anchors
-animations
 
         ↓
 
@@ -1794,7 +1725,6 @@ renders world
 controls player
 camera
 artwork
-animations
 
         ↓
 
@@ -1837,8 +1767,8 @@ show GLB
 Artwork:
 one image on one ArtSlot
 
-Character:
-Idle only
+Ghost avatar:
+static ghost at PlayerSpawn
 
 Movement:
 WASD
