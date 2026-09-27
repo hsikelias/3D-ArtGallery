@@ -97,6 +97,16 @@
     .close-menu:hover { background: #eee8f4; }
     dialog:has(.close-menu:not([hidden]))::before { margin-right: 28px; }
     @media (prefers-reduced-motion: reduce) { .choice { transition: none; } }
+.ghost-labels { position: absolute; inset: 0; pointer-events: none; }
+.ghost-name {
+  font-size: 20px;
+  font-weight: 800;
+  white-space: nowrap;
+  pointer-events: none;
+  -webkit-text-stroke: 3px #000;
+  paint-order: stroke fill;
+  text-shadow: 0 1px 2px #000;
+}
   </style>
 </head>
 <body>
@@ -163,9 +173,11 @@
     const dialog = document.querySelector('#entry-dialog');
     const world = document.querySelector('.world');
     let galleryControls;
+    let playerController;
     const resetPlayer = document.querySelector('#reset-player');
     resetPlayer.addEventListener('click', () => {
       if (!galleryControls || dialog.open) return;
+      if (playerController) { playerController.reset(); return; }
       // Clear orbit momentum, then restore the saved starting position and zoom.
       const damping = galleryControls.enableDamping;
       galleryControls.enableDamping = false;
@@ -290,14 +302,43 @@
             ? new URL('./public/models/gallery.glb', document.baseURI).href
             : url);
         }
-        const [{ createScene }, { loadGallery }] = await Promise.all([
+        const [{ createScene }, { loadGallery }, { createPlayerController }, { createGhost }, { Box3, Vector3 }] = await Promise.all([
           import('./src/scene/createScene.js'),
           import('./src/scene/loadGallery.js'),
+          import('./src/player/createPlayerController.js'),
+          import('./src/player/ghost_mesh.js'),
+          import('three'),
         ]);
-        const { scene, controls, inspectionLighting } = createScene(document.querySelector('#viewport'));
+        const { scene, camera, controls, canvas, setUpdate, inspectionLighting } = createScene(document.querySelector('#viewport'));
         galleryControls = controls;
         syncModalState();
-        await loadGallery(scene, inspectionLighting);
+        const { spawn } = await loadGallery(scene, inspectionLighting);
+    const placeholder = scene.getObjectByName('Player');
+    if (!placeholder || !spawn) throw new Error('The gallery needs Player and PlayerSpawn for ghost placement.');
+    // Use the authored reference character's feet as the requested spawn point.
+    // Update only the loaded scene; preserve the Blender file and anchor name.
+    const bounds = new Box3().setFromObject(placeholder);
+    const spawnPosition = bounds.getCenter(new Vector3());
+    spawnPosition.y = bounds.min.y;
+    spawn.position.copy(spawn.parent.worldToLocal(spawnPosition.clone()));
+    spawn.updateMatrixWorld(true);
+    const ghost = createGhost({ username: 'Guest' });
+    const ghostHeight = new Box3().setFromObject(ghost).getSize(new Vector3()).y;
+    ghost.scale.setScalar(bounds.getSize(new Vector3()).y / ghostHeight);
+    placeholder.removeFromParent();
+    scene.add(ghost);
+    playerController = createPlayerController({ scene, camera, controls, canvas,
+      player: ghost, spawn });
+    const restHeight = ghost.position.y;
+    let elapsed = 0;
+    setUpdate((delta) => {
+      playerController.update(delta);
+      elapsed += delta;
+      // Bob only the visual child so the movement pivot and camera stay level.
+      ghost.position.y = restHeight + 0.4 + Math.sin(elapsed * 1.8) * 0.18;
+    });
+
+        syncModalState();
         status.hidden = true;
         resetPlayer.disabled = false;
       } catch (error) {

@@ -1,5 +1,6 @@
 ﻿import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 
 export function createScene(container) {
   const scene = new THREE.Scene();
@@ -13,6 +14,9 @@ export function createScene(container) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.domElement.setAttribute('aria-label', '3D gallery inspection');
   container.appendChild(renderer.domElement);
+  const labels = new CSS2DRenderer();
+  labels.domElement.className = 'ghost-labels';
+  container.appendChild(labels.domElement);
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.target.set(0, 9, -15);
   controls.enableDamping = true;
@@ -27,12 +31,19 @@ export function createScene(container) {
     camera.aspect = container.clientWidth / container.clientHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(container.clientWidth, container.clientHeight);
+    labels.setSize(container.clientWidth, container.clientHeight);
   }
   window.addEventListener('resize', resize);
   resize();
-  renderer.setAnimationLoop(() => {
-    controls.update();
+  let update = () => controls.update();
+  let previousTime;
+  renderer.setAnimationLoop((time) => {
+    const delta = previousTime === undefined ? 0 : Math.min((time - previousTime) / 1000, 0.05);
+    previousTime = time;
+    update(delta);
     renderer.render(scene, camera);
+    labels.render(scene, camera);
   });
-  return { scene, controls, inspectionLighting };
+  return { scene, camera, controls, inspectionLighting, canvas: renderer.domElement,
+    setUpdate(callback) { update = callback; } };
 }
