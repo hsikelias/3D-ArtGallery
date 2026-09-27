@@ -18,6 +18,9 @@ export async function createGalleryRuntime() {
     const { scene, camera, controls, canvas, setUpdate, inspectionLighting } = createScene(document.querySelector('#viewport'));
     controls.enabled = !document.querySelector("dialog[open]");
     const { spawn, artSlots } = await loadGallery(scene, inspectionLighting);
+    // Decorative assets load independently so a missing statue never blocks entry.
+    void import('./scene/loadStatues.js').then(({ loadStatues }) => loadStatues(scene))
+      .catch(error => console.warn('Statues unavailable:', error));
     const placeholder = scene.getObjectByName('Player');
     if (!placeholder || !spawn) throw new Error('The gallery needs Player and PlayerSpawn for ghost placement.');
     // Use the authored reference character's feet as the requested spawn point.

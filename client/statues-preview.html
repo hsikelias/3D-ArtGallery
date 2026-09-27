@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gallery statues — placement preview</title>
+  <style>
+    body { margin: 0; overflow: hidden; font: 14px/1.5 system-ui, sans-serif; }
+    canvas { display: block; }
+    #viewport { width: 100vw; height: 100dvh; }
+    aside { position: fixed; top: 16px; left: 16px; max-width: 300px; background: #fffffff0; border-radius: 12px; padding: 16px; }
+    h1 { font-size: 18px; margin: 0 0 8px; }
+    p { margin: 6px 0; }
+  </style>
+</head>
+<body>
+  <div id="viewport"></div>
+  <aside><h1>Middle-wall sculptures</h1><p id="status" role="status">Loading statues…</p><p>Drag to orbit · Scroll to zoom · Right-drag to pan</p><a href="/">Back to the gallery</a></aside>
+  <script type="module">
+    import { createScene } from './src/scene/createScene.js';
+    import { loadGallery } from './src/scene/loadGallery.js';
+    import { loadStatues } from './src/scene/loadStatues.js';
+    const { scene, camera, controls, inspectionLighting } = createScene(document.querySelector('#viewport'));
+    camera.position.set(4, 12, 26);
+    controls.target.set(4, 6, -3);
+    controls.update();
+    try {
+      await loadGallery(scene, inspectionLighting);
+      scene.getObjectByName('Player')?.removeFromParent();
+      const { statues, errors } = await loadStatues(scene);
+      document.querySelector('#status').textContent = `${statues.length} statues loaded. ${errors.join(' ')}`;
+    } catch (error) { document.querySelector('#status').textContent = error.message; }
+  </script>
+</body>
+</html>
