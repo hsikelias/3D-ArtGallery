@@ -306,6 +306,8 @@ Do not build a complicated dynamic frame system first.
 
 The first artwork system should be extremely simple.
 
+Use a simple brown backing for depth: put each image plane just in front of a brown box. Add 0.5 gallery units to the image's total width and height (0.25 on each edge), use the current tuned depth of 0.25 units, and leave a 0.01-unit gap between the image and the box's front. Keep aspect-ratio fitting unchanged. This is a plain rectangular backing, not an elaborate frame or molding system; all dimensions are configurable in JavaScript. Keep the rear of the box clear of the wall and place the image outward by the box depth plus the image gap.
+
 Each artwork slot is:
 
 ```text
@@ -342,7 +344,7 @@ When the artwork is added directly to the main scene, use the anchor's world pos
 ```js
 slot.getWorldPosition(artwork.position);
 artwork.rotation.set(0, slotSettings.rotationY, 0);
-artwork.translateZ(slotSettings.wallOffset);
+artwork.translateZ(slotSettings.wallOffset + artworkFrame.depth + artworkFrame.imageGap);
 ```
 
 Do not stretch images.
@@ -357,7 +359,7 @@ Each slot configuration defines:
 
 - `rotationY`: absolute facing direction in Three.js world space, in radians
 - `maxWidth` and `maxHeight`: the available display area in gallery units
-- `wallOffset`: a small distance along the artwork's local positive Z axis, pointing into the room
+- `wallOffset`: clearance behind the backing along local positive Z, pointing into the room; the image is farther out by the frame depth and image gap
 - optional position corrections in world units if an anchor needs adjustment
 
 Check the facing direction with a plain plane at each wall before finalizing the values. Do not guess final rotations from the names alone. Keep configuration keyed by `ArtSlot_01` through `ArtSlot_15`, and use the same configuration in every browser.
@@ -970,7 +972,7 @@ Display hardcoded test images in the gallery.
 
 - external APIs
 - uploading
-- frames
+- elaborate frames or molding geometry
 - drag/drop rearranging
 - advanced sizing system
 

@@ -29,7 +29,7 @@ To use your own test artwork:
 3. Run `cd client` then `npm run dev`. Refresh and check the artwork count in the status panel.
 4. Image order maps to slot order. Supply up to 15 URLs; fewer images leave the remaining slots empty. Failed images leave their assigned slot empty and report details in the console.
 
-The renderer uses plain, front-facing planes without frames. Image aspect ratios are preserved within an 8-by-8-unit display limit; no cropping or stretching occurs. Artwork uses an unlit material so gallery preview lighting does not obscure its colors.
+The renderer uses front-facing image planes on brown rectangular backings. Image aspect ratios are preserved within an 8-by-8-unit display limit; no cropping or stretching occurs. Each backing adds a 0.25-unit border on every edge (0.5 extra total width and height) and has a tuned depth of 0.25 units. The backing stays in front of the wall, with its image surface projecting into the room. The image sits 0.01 units in front of the backing to avoid flickering. Tune `artworkFrame` in `src/artwork/imagePlacement.js` to change the border, depth, or brown color. These dimensions are gallery units, independent of image pixel resolution. Artwork uses an unlit material so gallery preview lighting does not obscure its colors; the brown backing responds to scene lighting.
 
 `src/artwork/slotConfig.js` contains manually configured world-space rotations, size limits, and wall offsets for all 15 slots, including the interior divider. `ArtSlot_05` has a small position correction because that anchor sits farther from the wall. No Blender file changes are needed. The developer can tune these values as the gallery layout evolves.
 
@@ -45,7 +45,7 @@ const result = await artworkManager.setImages(selectedImageUrls);
 
 Reuse this manager for later selections. `setImages` replaces previous planes and releases their textures; slow results from an older selection cannot overwrite a newer one. Use `clear()` for an empty gallery and `dispose()` when leaving the scene. The component that creates local object URLs owns revoking them once they are no longer needed by previews or texture loading. Shared room uploads still require URLs accessible to other browsers.
 
-Only the artwork imports and a small startup block were added to `main.js`; the popup HTML and player/camera code were not changed. A future frame can be added behind each sized plane without changing the image-selection API.
+Only the artwork imports and a small startup block were added to `main.js`; the popup HTML and player/camera code were not changed. The backing is a child of each image plane and is cleaned up with it; the image-selection API is unchanged.
 
 From `client/`, verify with:
 
@@ -92,9 +92,9 @@ Camera collision remains a separate future feature. Stop here to review Stage 7.
 
 A browser-based multiplayer art gallery with colored ghost avatars. See [PLAN.md](PLAN.md) for the staged roadmap.
 
-## Current milestone: Stage 1
+## Current milestone: artwork placement with player controls
 
-The frontend loads the Blender gallery with Three.js. A temporary camera, mouse inspection controls, and scene diagnostics help verify the export. Ghosts, artwork placement, multiplayer, and voice remain later stages.
+The frontend loads the Blender gallery, displays 15 framed artworks, and supports a colored ghost with third-person movement and exterior wall collision. The artwork renderer is ready for the popup's image selection. Multiplayer, shared uploads, and voice remain later stages.
 
 ## Requirements
 
@@ -118,7 +118,7 @@ git clone https://github.com/hsikelias/3D-ArtGallery.git
 cd 3D-ArtGallery
 ```
 
-If you already have the repository, open a terminal in that folder instead. The setup initially lives on `feature/gallery-loader`; until its PR is merged, reviewers should fetch and switch to that branch.
+If you already have the repository, open a terminal in that folder instead. Use the branch being reviewed, or updated `main` once the feature has been merged.
 
 Run frontend commands inside `client`, not the repository root:
 
@@ -168,35 +168,31 @@ git switch -c feature/your-task
 
 After implementing and testing, inspect your changes with `git status` and `git diff`. Stage only intended files, commit, and push your branch. Open a pull request targeting `main`; another teammate should run it before merging.
 
-For the initial setup branch, the author can use:
-
-```bash
-git add .gitignore README.md client/package.json client/package-lock.json client/index.html client/src
-git commit -m "Load Blender gallery with inspection controls"
-git push -u origin feature/gallery-loader
-```
-
-To review the setup before it is merged, after the author pushes it:
+To review the artwork feature after its author pushes it:
 
 ```bash
 git fetch origin
-git switch feature/gallery-loader
+git switch feature/artwork-placement
 cd client
 npm ci
+node --test
 npm run build
 npm run dev
 ```
 
-Verify the gallery, mouse controls, resize handling, and scene diagnostics, and record the result on the PR. Once merged, everyone returns to the repository root, switches to `main`, and runs `git pull --ff-only`. Preserve uncommitted work before switching branches.
+Verify all 15 artworks, frame depth, image proportions, ghost movement, resize handling, and scene diagnostics. Record the result on the PR. Once merged on GitHub, everyone returns to the repository root, switches to `main`, and runs `git pull --ff-only`. A local merge alone does not update GitHub. Preserve uncommitted work before switching branches.
 
-## Stage 1 verification checklist
+## Current verification checklist
 
 - [ ] Each teammate can install dependencies and run the frontend.
 - [ ] The gallery geometry and materials appear, and its scale is reviewed against the Blender reference.
+- [ ] All 15 artworks load with correct proportions and brown backings clear of the walls.
+- [ ] Ghost movement and exterior collision still work.
+- [ ] `node --test` succeeds from `client/`.
 - [ ] `npm run build` succeeds.
-- [ ] A teammate reviews the setup PR before it is merged.
+- [ ] A teammate reviews the feature PR before it is merged.
 
-Next: after Stage 1 review, implement Stage 2: a temporary cube at PlayerSpawn and a plane at ArtSlot_01.
+Next: connect the popup's selected image URLs to the existing artwork manager, coordinating the integration with the UI teammate. Shared uploads and room state come later.
 
 # Team Members
 1. Lekish Sai Podili
@@ -209,24 +205,24 @@ Next: after Stage 1 review, implement Stage 2: a temporary cube at PlayerSpawn a
 - `src/scene/createScene.js` creates the scene, perspective camera, renderer, resize handler, render loop, and temporary OrbitControls. Camera position and target are explicit values for the current export.
 - `src/scene/loadGallery.js` loads `/models/gallery.glb`, preserves its transforms and authored materials/lights, and logs object names, world spawn coordinates, dimensions, and imported lights.
 - `src/scene/configureGalleryPreview.js` gives meshes with no exported material a matte, double-sided preview material. It adds temporary point lights at LightBulb objects only if the GLB has no actual lights. Authored materials are not overwritten.
-- Left-drag to orbit, scroll to zoom, right-drag to pan, and use Reset view to return inside the room. These are development controls, not the future ghost controller.
+- Click the gallery and use WASD to move the ghost, drag to orbit, scroll to zoom, and press Escape to release keyboard focus. Reset returns the player and camera to spawn; panning is disabled by the player controller.
 - Open browser developer tools (F12), then Console, to inspect the object table.
 - Confirm 15 artwork anchors and PlayerSpawn are reported. Resize the window and check the view is not stretched.
 - The current export contains 11 visible LightBulb fixtures but no exported light objects. Inspection lighting controls a hemisphere fill plus 11 temporary point lights; turning it off leaves only any imported lights and emissive surfaces. These preview lights do not cast shadows and may illuminate through walls. Final lighting will need separate tuning.
 - The Floor mesh (which includes the room surfaces) and Player reference mesh have no assigned material in the GLB. glTF's default material loads as metallic and single-sided; this caused dark surfaces and walls disappearing from the back. The temporary fallback keeps both sides visible without modifying the GLB.
-- The free inspection camera can still pass through walls. Player collision and camera obstruction handling belong to the later controls stages; rendering both sides of a wall does not provide collision.
+- The ghost is constrained by exterior walls; interior partitions remain passable. The camera can still pass through walls because camera obstruction handling is not implemented.
 - Check scale visually with the Blender reference before approving. Dimensions are reported in exported units; no automatic rescaling is applied.
 - Loading errors appear in the panel and browser console.
 - The production build may report a bundle-size warning for Three.js; this is not a build failure.
 
-## Hackathon artwork direction (planned)
+## Hackathon artwork direction
 
-Use images selected from the user's device; Bluesky is out of scope. Keep the current `gallery.glb` unchanged. Artwork placement, facing direction, display dimensions, and wall offsets will be adjusted manually in JavaScript, with no Blender edits required.
+The intended source is images selected from the user's device; Bluesky is out of scope. The current preview uses bundled JPEG/PNG files. Keep `gallery.glb` unchanged and tune placement, facing direction, display dimensions, and wall offsets manually in JavaScript.
 
 - The 15 existing `ArtSlot` anchors supply world-space center positions.
-- A planned `src/artwork/slotConfig.js` will hold each slot's rotation, maximum width/height, and wall offset. All current anchors have the same rotation, so check each wall's facing direction visually.
-- The renderer will fit each image within those limits while preserving its aspect ratio, without stretching or cropping.
-- First prove the renderer with test images; Stage 9 adds local file selection and preview. Stage 14 adds shared upload URLs so other players can see the selected images. Local `blob:` URLs cannot serve as shared room artwork URLs.
+- `src/artwork/slotConfig.js` holds each slot's rotation, maximum width/height, and wall offset. Manual rotations compensate for the unrotated Blender anchors.
+- The renderer fits each image within those limits while preserving its aspect ratio, without stretching or cropping.
+- Stage 9 connects local file selection and preview to the renderer. Stage 14 adds shared upload URLs so other players can see the selected images. Local `blob:` URLs cannot serve as shared room artwork URLs.
 - Existing preview materials and lighting can be tuned in Three.js. Exact matching to Blender's render is not required for the hackathon.
 
-These are planned features, not functionality already implemented. See PLAN.md for the updated stages.
+Artwork rendering and manual slot configuration are implemented. File selection, shared storage, and multiplayer integration remain separate work. See PLAN.md for the updated stages.

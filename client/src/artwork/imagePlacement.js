@@ -1,7 +1,7 @@
 import { BoxGeometry, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace, Vector3 } from 'three';
 
 // Gallery units: 0.25 on each edge adds 0.5 to the overall width and height.
-// The 0.75 depth matches the existing green noticeboard's approximate thickness.
+// Depth is independently tuned in gallery units; the backing projects outward.
 export const artworkFrame = { border: 0.25, depth: 0.25, imageGap: 0.01, color: '#70452c' };
 
 export function fitArtwork(imageWidth, imageHeight, maxWidth, maxHeight) {
