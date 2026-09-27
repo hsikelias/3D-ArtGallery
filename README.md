@@ -1,5 +1,61 @@
 # HackNite: 3D Art Gallery
 
+## Artwork planes (`feature/artwork-placement`)
+
+The gallery displays 15 supplied JPEG/PNG artworks on `ArtSlot_01` through `ArtSlot_15`. Landscape and portrait images keep their original proportions. The status panel should report `15 artworks loaded`.
+
+| Slot | Artwork filename |
+| --- | --- |
+| ArtSlot_01 | CottonRiver.jpg |
+| ArtSlot_02 | Elephant.jpg |
+| ArtSlot_03 | Kanye.jpg |
+| ArtSlot_04 | LadyInTheForest.jpg |
+| ArtSlot_05 | MarioDTS.png |
+| ArtSlot_06 | MontogomeryCalendar.png |
+| ArtSlot_07 | Nest.jpg |
+| ArtSlot_08 | Portrait Study1.png |
+| ArtSlot_09 | Pure Souls.png |
+| ArtSlot_10 | QueensGambit.jpg |
+| ArtSlot_11 | Sargent.jpg |
+| ArtSlot_12 | Sargent2.jpg |
+| ArtSlot_13 | Sketch1.jpg |
+| ArtSlot_14 | Spoon.jpg |
+| ArtSlot_15 | Study.jpg |
+
+To use your own test artwork:
+
+1. Copy JPEG/PNG files into `client/public/test-art/`.
+2. Edit the filename list in `client/src/artwork/testImages.js`, for example `my-painting.jpg`. Use the exact filenames, including capitalization and extension. Spaces are encoded automatically when building the URLs. Adding a file alone does not add it to the selection.
+3. Run `cd client` then `npm run dev`. Refresh and check the artwork count in the status panel.
+4. Image order maps to slot order. Supply up to 15 URLs; fewer images leave the remaining slots empty. Failed images leave their assigned slot empty and report details in the console.
+
+The renderer uses plain, front-facing planes without frames. Image aspect ratios are preserved within an 8-by-8-unit display limit; no cropping or stretching occurs. Artwork uses an unlit material so gallery preview lighting does not obscure its colors.
+
+`src/artwork/slotConfig.js` contains manually configured world-space rotations, size limits, and wall offsets for all 15 slots, including the interior divider. `ArtSlot_05` has a small position correction because that anchor sits farther from the wall. No Blender file changes are needed. The developer can tune these values as the gallery layout evolves.
+
+### Popup integration for the UI teammate
+
+The artwork renderer has no form or upload dependencies. Keep the manager created in `main.js`, remove its temporary `testImageUrls` call when connecting the popup, and pass the chosen image URLs instead:
+
+```js
+const artworkManager = createArtworkManager({ scene, artSlots });
+const result = await artworkManager.setImages(selectedImageUrls);
+// result.loadedCount, result.errors [{ slot, url, message }], result.superseded
+```
+
+Reuse this manager for later selections. `setImages` replaces previous planes and releases their textures; slow results from an older selection cannot overwrite a newer one. Use `clear()` for an empty gallery and `dispose()` when leaving the scene. The component that creates local object URLs owns revoking them once they are no longer needed by previews or texture loading. Shared room uploads still require URLs accessible to other browsers.
+
+Only the artwork imports and a small startup block were added to `main.js`; the popup HTML and player/camera code were not changed. A future frame can be added behind each sized plane without changing the image-selection API.
+
+From `client/`, verify with:
+
+```bash
+node --test test/artwork.test.js
+npm run build
+```
+
+The tests cover aspect-ratio fitting, wall clearance for all 15 slots against the actual GLB, failure isolation, replacement cleanup, and overlapping image selections. Also check the images visually in the running app before merging.
+
 ## Ghost model preview (`feature/ghost-mesh`)
 
 Following PLAN.md sections 8 and 14, `client/src/player/ghost_mesh.js` builds a
@@ -163,11 +219,14 @@ Next: after Stage 1 review, implement Stage 2: a temporary cube at PlayerSpawn a
 - Loading errors appear in the panel and browser console.
 - The production build may report a bundle-size warning for Three.js; this is not a build failure.
 
-## Correct the Blender export before final lighting
+## Hackathon artwork direction (planned)
 
-1. Assign explicit Principled BSDF materials to the room surfaces. Start with a light neutral base color, Metallic 0, and high Roughness for matte walls.
-2. Check wall normals and thickness. For intentionally thin planes that must be visible from both sides, disable material backface culling for export. For solid walls, fix normals and provide thickness as needed.
-3. Include actual Point, Spot, or Sun lights when exporting glTF. Bright/emissive bulb meshes alone do not light the room in this Three.js setup. Blender Area lights and World lighting are not exported by glTF; recreate their effect in Three.js or bake suitable lighting into textures later.
-4. Replace `client/public/models/gallery.glb` and reload. Confirm the console reports authored materials and imported lights. The preview material is only applied where a material is absent, and bulb lights are skipped when actual lights are imported.
+Use images selected from the user's device; Bluesky is out of scope. Keep the current `gallery.glb` unchanged. Artwork placement, facing direction, display dimensions, and wall offsets will be adjusted manually in JavaScript, with no Blender edits required.
 
-Reference: [Blender glTF export documentation](https://docs.blender.org/manual/en/latest/addons/import_export/scene_gltf2.html). Differences between Blender rendering and the browser still require visual tuning; the temporary preview is not a reproduction of the Blender render.
+- The 15 existing `ArtSlot` anchors supply world-space center positions.
+- A planned `src/artwork/slotConfig.js` will hold each slot's rotation, maximum width/height, and wall offset. All current anchors have the same rotation, so check each wall's facing direction visually.
+- The renderer will fit each image within those limits while preserving its aspect ratio, without stretching or cropping.
+- First prove the renderer with test images; Stage 9 adds local file selection and preview. Stage 14 adds shared upload URLs so other players can see the selected images. Local `blob:` URLs cannot serve as shared room artwork URLs.
+- Existing preview materials and lighting can be tuned in Three.js. Exact matching to Blender's render is not required for the hackathon.
+
+These are planned features, not functionality already implemented. See PLAN.md for the updated stages.

@@ -238,7 +238,9 @@ The Empty represents:
 - where the artwork should be centered
 - optionally its orientation
 
-At the beginning, the code only needs to use the Empty's position and rotation.
+For the hackathon, keep the existing GLB unchanged and use each Empty's world position. All 15 current artwork anchors have the same unrotated orientation, so configure the artwork's wall-facing rotation manually in JavaScript.
+
+Blender changes are not required for artwork placement. Keep per-slot rotation, maximum width/height, and any small position correction in `client/src/artwork/slotConfig.js`.
 
 The program will create image planes in Three.js.
 
@@ -326,7 +328,7 @@ Three.js:
 2. creates a plane
 3. loads the image as a texture
 4. preserves the image's aspect ratio
-5. places the plane at the Empty
+5. places the plane at the Empty's world position using its manually configured rotation and wall offset
 6. repeats for the remaining artwork
 
 Example concept:
@@ -335,16 +337,40 @@ Example concept:
 const slot = gallery.getObjectByName("ArtSlot_01");
 ```
 
-Then:
+When the artwork is added directly to the main scene, use the anchor's world position rather than its parent-relative position:
 
 ```js
-artwork.position.copy(slot.position);
-artwork.quaternion.copy(slot.quaternion);
+slot.getWorldPosition(artwork.position);
+artwork.rotation.set(0, slotSettings.rotationY, 0);
+artwork.translateZ(slotSettings.wallOffset);
 ```
 
 Do not stretch images.
 
 Use their original aspect ratio.
+
+## Manual Slot Configuration
+
+Developers tune the artwork in code; users only select images. No Blender re-export or user-entered aspect ratio is required.
+
+Each slot configuration defines:
+
+- `rotationY`: absolute facing direction in Three.js world space, in radians
+- `maxWidth` and `maxHeight`: the available display area in gallery units
+- `wallOffset`: a small distance along the artwork's local positive Z axis, pointing into the room
+- optional position corrections in world units if an anchor needs adjustment
+
+Check the facing direction with a plain plane at each wall before finalizing the values. Do not guess final rotations from the names alone. Keep configuration keyed by `ArtSlot_01` through `ArtSlot_15`, and use the same configuration in every browser.
+
+Fit the image inside the configured display area without stretching or cropping:
+
+```js
+const scale = Math.min(maxWidth / imageWidth, maxHeight / imageHeight);
+const artworkWidth = imageWidth * scale;
+const artworkHeight = imageHeight * scale;
+```
+
+Read dimensions after the image has loaded successfully. Create the plane with the resulting width and height and center it on the anchor. These are world-space dimensions; image pixels do not determine the gallery's physical scale.
 
 ---
 
@@ -380,31 +406,33 @@ before dealing with network/API problems.
 
 ## Planned Hackathon Artwork Flow
 
-A likely user flow is Bluesky integration.
+User-selected image uploads are the only hackathon artwork source. Bluesky integration is out of scope.
 
 Potential flow:
 
 ```text
-user enters Bluesky handle
+user enters a display name
         ↓
-fetch recent posts
+user chooses images from their device
         ↓
-filter posts containing images
+validate files and load local previews
         ↓
 display image thumbnails
         ↓
 user selects up to gallery slot count
         ↓
-selected images are assigned to ArtSlot_01...
+selected images are assigned to ArtSlot_01... using manual slot settings
         ↓
 gallery is created
 ```
 
 Important:
 
-Bluesky images should still be treated as potentially different aspect ratios.
+Accept different image aspect ratios and fit them automatically using Section 6. Start with JPEG and PNG, a maximum selection matching the available slots (currently 15), and an explicit per-file size limit in the UI. Reject unreadable files with a clear message.
 
-Do not assume every Bluesky image has identical dimensions.
+Local previews can use `URL.createObjectURL(file)`. Revoke these URLs when their previews/textures are no longer needed. This is local file selection, not yet an upload to shared storage.
+
+For multiplayer, the selected files must be uploaded to a server or storage service that every joining browser can access. Use the returned shared URLs in room data. A creator's local `blob:` URLs cannot be shared as working image URLs with other players. Implement this shared upload step with Stage 14; the deployment/storage choice remains to be decided.
 
 The first placement logic can still remain simple:
 
@@ -712,6 +740,7 @@ project/
 │       │
 │       ├── artwork/
 │       │   ├── artworkManager.js
+│       │   ├── slotConfig.js
 │       │   └── imagePlacement.js
 │       │
 │       ├── multiplayer/
@@ -782,7 +811,7 @@ and see the starter page.
 
 When the team first sits down in the hacking room, do **not** start with multiplayer.
 
-Do not start with Bluesky.
+Do not start with image storage services.
 
 Do not start with artwork uploads.
 
@@ -935,6 +964,7 @@ Display hardcoded test images in the gallery.
 4. preserve aspect ratio
 5. place planes at `ArtSlot_01`, `ArtSlot_02`, etc.
 6. offset artwork slightly from the wall if needed to prevent z-fighting
+7. tune per-slot facing directions and maximum display dimensions in `slotConfig.js`; use the existing GLB without editing Blender
 
 ## Do Not Build Yet
 
@@ -1089,33 +1119,33 @@ Do not polish heavily yet.
 
 ---
 
-# STAGE 9 — Bluesky Artwork Integration
+# STAGE 9 — Local Image Selection and Preview
 
 ## Goal
 
-Retrieve artwork without building a full file-storage system.
+Let users choose their own images and preview them in the gallery using the existing artwork renderer.
 
 ## Intended Flow
 
 ```text
-enter Bluesky handle
+choose JPEG/PNG files from device
        ↓
-fetch recent posts
+validate file types, file sizes, and selection count
        ↓
-keep posts containing images
+create local image URLs
        ↓
 show thumbnails
        ↓
 select up to number of ArtSlots
        ↓
-create gallery
+preview the selected images in the gallery
 ```
 
 ## Important Development Rule
 
 Before implementing this stage, the hardcoded artwork system must already work.
 
-The Bluesky feature should only replace:
+File selection should only replace:
 
 ```text
 where image URLs come from
@@ -1134,12 +1164,18 @@ Three.js planes
 
 later becomes
 
-Bluesky Image URLs
+Local Image URLs
         ↓
 ArtworkManager
         ↓
 Three.js planes
 ```
+
+## Success Condition
+
+Users can select portrait, landscape, and square images and see them fitted correctly at the configured anchors. Empty slots remain empty. Failed images show a helpful error. Replacing a selection cleans up unused textures, planes, and object URLs.
+
+This milestone is a local preview. Actual shared uploads are required in Stage 14 before another device can see these images.
 
 ---
 
@@ -1287,6 +1323,17 @@ The server should separate players by room. Assign ghost colors from the colors 
 
 Everyone joining the same room sees the same selected artwork.
 
+## Shared Upload Tasks
+
+1. add an upload endpoint or storage integration that returns image URLs accessible to all room members
+2. validate supported image types, size limits, and room slot count on the server as well as in the UI
+3. upload the creator's selected files and handle upload failures before publishing the room artwork list
+4. store the returned URLs in a stable slot order; never send local `blob:` URLs as shared artwork
+5. load that list through the same artwork renderer and manual slot configuration on every client
+6. verify a second device and a late joiner both see the same artwork
+
+Choose a storage approach compatible with the demo deployment and define when temporary uploads expire. Accounts and a large database are not required for this feature.
+
 Room data can include:
 
 ```js
@@ -1394,7 +1441,7 @@ A possible responsibility split:
 
 - image selection
 - artwork manager
-- Bluesky integration
+- local image selection and upload integration
 - image placement
 
 ## Person D — UI / Multiplayer
@@ -1482,7 +1529,7 @@ Good task:
 
 Bad task:
 
-> Build gallery, multiplayer, ghost movement, Bluesky, and voice chat.
+> Build gallery, multiplayer, ghost movement, uploads, and voice chat.
 
 ---
 
@@ -1592,7 +1639,7 @@ hardcoded URLs
 Later:
 
 ```text
-Bluesky URLs
+Local preview URLs, then shared uploaded-image URLs
 ```
 
 The rendering system should not care where the URLs came from.
@@ -1624,7 +1671,7 @@ system         avatar
          ↓
       UI flow
          ↓
-      Bluesky
+ Local image selection
          ↓
    Multiplayer cubes
          ↓
@@ -1783,7 +1830,7 @@ multiplayer events
 4. WEB UI / APIs
 names
 room codes
-Bluesky selection
+image selection / uploads
 microphone controls
 ```
 

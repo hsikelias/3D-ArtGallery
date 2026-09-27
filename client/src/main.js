@@ -3,6 +3,8 @@ import { loadGallery } from './scene/loadGallery.js';
 import { createPlayerController } from './player/createPlayerController.js';
 import { Box3, Vector3 } from 'three';
 import { createGhost } from './player/ghost_mesh.js';
+import { createArtworkManager } from './artwork/artworkManager.js';
+import { testImageUrls } from './artwork/testImages.js';
 import './style.css';
 
 const status = document.querySelector('#setup-status');
@@ -43,6 +45,14 @@ async function start() {
       `PlayerSpawn ${spawn ? 'found' : 'missing'}, ${lights.length} imported lights.`;
     document.querySelector('#scene-details').textContent =
       `Size: ${size.x.toFixed(1)} x ${size.y.toFixed(1)} x ${size.z.toFixed(1)} exported units (X/Y/Z). ` + warnings.join(' ');
+    // Temporary test selection. The popup can later call setImages(selectedUrls).
+    const artworkManager = createArtworkManager({ scene, artSlots });
+    const artworkResult = await artworkManager.setImages(testImageUrls);
+    status.textContent += ` ${artworkResult.loadedCount} artworks loaded.`;
+    if (artworkResult.errors.length) {
+      status.textContent += ` ${artworkResult.errors.length} images failed; check their paths.`;
+      console.warn('Artwork loading errors:', artworkResult.errors);
+    }
   } catch (error) {
     console.error('Gallery setup failed:', error);
     status.textContent = 'Unable to show the gallery. Check WebGL support and public/models/gallery.glb. See the browser console for details.';
