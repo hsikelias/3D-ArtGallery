@@ -1,0 +1,1858 @@
+# Multiplayer 3D Art Gallery — Project Guide for the Team and Coding Agents
+
+## 0. Purpose of This Document
+
+This file is the working technical guide for the project.
+
+It is meant to be read by:
+
+- the 4-person hackathon team
+- any coding agent helping the team
+- future contributors who need to understand the project quickly
+
+The project should **not** be one-shot generated.
+
+The team wants to understand how the project works while still using AI coding assistance heavily. Therefore, coding agents should build the project **incrementally**, explain each major system before or while implementing it, and stop at clear checkpoints so the team can test and understand the result.
+
+The overall rule is:
+
+> Build the smallest working version of each system first, then combine the systems, then polish.
+
+Do not build advanced features before the earlier stage is working.
+
+---
+
+# 1. Project Idea
+
+The project is a **multiplayer 3D art gallery in the browser**.
+
+Instead of viewing an artist's work in a normal social-media feed or portfolio grid, users enter a stylized 3D gallery and walk around it as a small low-poly humanoid/animal character.
+
+A gallery owner should eventually be able to:
+
+1. enter their display name
+2. provide/select artwork
+3. create a gallery
+4. enter the 3D gallery
+5. receive a room code
+6. share that code
+7. have other users join
+8. walk around the gallery together
+9. see each other's names and movement
+10. eventually talk using proximity voice chat
+
+The project is intentionally not a giant metaverse or open world.
+
+The core experience is:
+
+```text
+artist / user
+      ↓
+select artwork
+      ↓
+create gallery
+      ↓
+enter 3D room
+      ↓
+walk around
+      ↓
+invite friends
+      ↓
+explore together
+```
+
+The goal is to make it feel like:
+
+> "I am physically visiting someone's digital art exhibition."
+
+---
+
+# 2. Current Visual Direction
+
+The gallery is intentionally minimalist and stylized.
+
+Current Blender work includes:
+
+- gallery room/environment
+- walls and architectural divisions
+- floor
+- ceiling
+- point lights / bulb objects
+- designated artwork locations
+- a temporary player-height reference
+- artwork slot Empty objects
+- a future player spawn Empty
+
+The artwork itself should visually remain the focus.
+
+Avoid filling the environment with unnecessary decoration.
+
+Possible later props:
+
+- bench
+- plant
+- pedestal
+- small sculpture
+- minimal signage
+- simple decorative objects
+
+---
+
+# 3. Core Technical Stack
+
+## Frontend Application
+
+### Vite
+
+Use Vite as the development/build environment.
+
+Responsibilities:
+
+- local development server
+- frontend bundling
+- fast reloads
+- production build
+
+---
+
+### JavaScript
+
+Use JavaScript unless the team explicitly decides to migrate to TypeScript later.
+
+Do not introduce TypeScript just because an agent prefers it.
+
+The team should prioritize understanding the project over adding unnecessary abstraction.
+
+---
+
+### Three.js
+
+Three.js is the main 3D engine.
+
+Three.js is responsible for:
+
+- loading the Blender gallery
+- rendering the 3D scene
+- rendering player models
+- loading GLB / glTF assets
+- camera movement
+- third-person camera behavior
+- character movement
+- character rotation
+- playing character animations
+- displaying artwork textures
+- positioning artwork at Blender anchors
+- lighting adjustments
+- collision detection
+- raycasting
+- spatial information used by proximity voice
+- rendering remote multiplayer users
+
+---
+
+### HTML / CSS
+
+Used for all normal interface elements such as:
+
+- landing page
+- username form
+- create gallery screen
+- join gallery screen
+- room code display
+- artwork selector
+- loading screen
+- HUD
+- microphone controls
+- player name tags where appropriate
+
+---
+
+### React
+
+React is optional.
+
+If React is used, it should mainly organize the website UI.
+
+Do not introduce React Three Fiber unless the team deliberately chooses it.
+
+The simplest planned architecture is:
+
+```text
+React or normal DOM UI
+        +
+Three.js 3D scene
+```
+
+Three.js should remain understandable as its own system.
+
+---
+
+# 4. Blender's Role
+
+Blender is used to create the visual 3D assets.
+
+Blender is **not** responsible for game logic.
+
+Blender should contain:
+
+## Gallery
+
+- floor
+- walls
+- ceiling
+- architectural details
+- visible light fixtures / bulbs
+- props
+- artwork location anchors
+- player spawn anchor
+- optional collision geometry
+
+## Character
+
+- one low-poly humanoid / animal character
+- one armature / skeleton
+- Idle animation
+- Walk animation
+- Run animation
+
+The current character workflow is:
+
+```text
+Mixamo FBX
+    ↓
+Blender
+    ↓
+combine animations onto one character rig
+    ↓
+export one GLB
+    ↓
+Three.js
+```
+
+The final web character should ideally be:
+
+```text
+character.glb
+├── character mesh
+├── armature
+└── animations
+    ├── Idle
+    ├── Walk
+    └── Run
+```
+
+---
+
+# 5. Blender → Web Conventions
+
+These conventions are important because Three.js will look for Blender objects by name.
+
+## Artwork Anchors
+
+Artwork locations are represented by Blender Empty objects.
+
+Use names:
+
+```text
+ArtSlot_01
+ArtSlot_02
+ArtSlot_03
+...
+```
+
+The Empty represents:
+
+- where the artwork should be centered
+- optionally its orientation
+
+At the beginning, the code only needs to use the Empty's position and rotation.
+
+The program will create image planes in Three.js.
+
+The Empty itself is invisible.
+
+---
+
+## Player Spawn
+
+Create:
+
+```text
+PlayerSpawn
+```
+
+or later:
+
+```text
+PlayerSpawn_01
+PlayerSpawn_02
+PlayerSpawn_03
+```
+
+This Empty defines where new users enter the gallery.
+
+Blender defines the artistic spawn position.
+
+Three.js / multiplayer code uses that location when spawning a player.
+
+---
+
+## Light Objects
+
+Blender can contain:
+
+```text
+Bulb_01
+Bulb_02
+...
+```
+
+The visible bulb or fixture should be a normal mesh.
+
+Point lights may also be exported in the GLB.
+
+Three.js will load the scene and then the team will test how those lights look in the browser.
+
+If necessary, Three.js can:
+
+- modify imported light intensity
+- modify light distance
+- modify decay
+- enable or disable shadows
+- create replacement Three.js lights
+
+Do **not** delete the Blender lights before testing the GLB in Three.js.
+
+---
+
+# 6. Artwork System — First Version
+
+Do not build a complicated dynamic frame system first.
+
+The first artwork system should be extremely simple.
+
+Each artwork slot is:
+
+```text
+Blender Empty
+     ↓
+Three.js image plane
+```
+
+Example:
+
+```text
+ArtSlot_01
+     ↓
+image plane containing selected image
+```
+
+Three.js:
+
+1. finds `ArtSlot_01`
+2. creates a plane
+3. loads the image as a texture
+4. preserves the image's aspect ratio
+5. places the plane at the Empty
+6. repeats for the remaining artwork
+
+Example concept:
+
+```js
+const slot = gallery.getObjectByName("ArtSlot_01");
+```
+
+Then:
+
+```js
+artwork.position.copy(slot.position);
+artwork.quaternion.copy(slot.quaternion);
+```
+
+Do not stretch images.
+
+Use their original aspect ratio.
+
+---
+
+# 7. Artwork Source Strategy
+
+## First Development Version
+
+Before any external API is involved, hardcode a few test images.
+
+Example:
+
+```js
+const artworks = [
+  "/test-art/01.jpg",
+  "/test-art/02.jpg",
+  "/test-art/03.jpg"
+];
+```
+
+This lets the team prove:
+
+```text
+gallery loads
++
+artwork appears
++
+slots work
+```
+
+before dealing with network/API problems.
+
+---
+
+## Planned Hackathon Artwork Flow
+
+A likely user flow is Bluesky integration.
+
+Potential flow:
+
+```text
+user enters Bluesky handle
+        ↓
+fetch recent posts
+        ↓
+filter posts containing images
+        ↓
+display image thumbnails
+        ↓
+user selects up to gallery slot count
+        ↓
+selected images are assigned to ArtSlot_01...
+        ↓
+gallery is created
+```
+
+Important:
+
+Bluesky images should still be treated as potentially different aspect ratios.
+
+Do not assume every Bluesky image has identical dimensions.
+
+The first placement logic can still remain simple:
+
+```text
+selectedImages[0] → ArtSlot_01
+selectedImages[1] → ArtSlot_02
+selectedImages[2] → ArtSlot_03
+...
+```
+
+Smarter curation / rearranging can come later.
+
+---
+
+# 8. Character System
+
+For the first version, every player uses the **same character model**.
+
+Users do not need character customization.
+
+Players can be distinguished using:
+
+- username
+- name-tag color
+- possibly a body/material color later
+
+The character needs only:
+
+```text
+Idle
+Walk
+Run
+```
+
+No jump is required initially.
+
+No facial animation.
+
+No emotes.
+
+No inventory.
+
+---
+
+# 9. Character Animation Logic
+
+Three.js uses `AnimationMixer`.
+
+Conceptually:
+
+```text
+player not moving
+    ↓
+Idle
+
+player moving normally
+    ↓
+Walk
+
+player holding run key
+    ↓
+Run
+```
+
+Do not network-sync every bone.
+
+Multiplayer only needs to communicate:
+
+```text
+animation: "Idle"
+```
+
+or:
+
+```text
+animation: "Walk"
+```
+
+or:
+
+```text
+animation: "Run"
+```
+
+Each browser plays that animation locally.
+
+---
+
+# 10. Third-Person Camera
+
+Three.js handles the camera.
+
+No separate camera engine is required.
+
+Desired behavior:
+
+```text
+mouse movement
+      ↓
+rotate camera around player
+
+WASD
+      ↓
+move relative to camera direction
+
+character
+      ↓
+rotate toward movement direction
+```
+
+Important:
+
+```text
+camera rotation
+!=
+character rotation
+```
+
+The player should be able to rotate the camera around a stationary character.
+
+When movement begins, the character should rotate toward the movement direction.
+
+The camera should smoothly follow the player.
+
+---
+
+# 11. Multiplayer Stack
+
+Use:
+
+```text
+Node.js
++
+Socket.IO
+```
+
+The server should initially be lightweight.
+
+The server handles:
+
+- connecting users
+- creating rooms
+- joining rooms
+- leaving rooms
+- usernames
+- player positions
+- player rotations
+- animation states
+- spawn/despawn events
+- room information
+- WebRTC signaling later
+
+The server does **not** constantly send the whole 3D gallery.
+
+Every browser loads the same gallery GLB locally.
+
+---
+
+# 12. Multiplayer Player State
+
+An early multiplayer packet may look like:
+
+```js
+{
+  id: "socket-id",
+  username: "Alex",
+  x: 4.2,
+  y: 0,
+  z: -2.1,
+  rotationY: 1.4,
+  animation: "Walk",
+  nameColor: "#ff77aa"
+}
+```
+
+Do not overcomplicate this schema initially.
+
+---
+
+# 13. Remote Players
+
+The local player is controlled by keyboard/mouse.
+
+Remote players are controlled by multiplayer data.
+
+Conceptually:
+
+```text
+LOCAL PLAYER
+keyboard/mouse
+      ↓
+movement
+
+REMOTE PLAYER
+Socket.IO messages
+      ↓
+movement
+```
+
+Both can still reuse much of the same character code.
+
+---
+
+# 14. Name Tags
+
+Each player should display their username above their character.
+
+A simple implementation can use:
+
+```text
+CSS2DRenderer
+```
+
+or another lightweight label solution.
+
+Example:
+
+```text
+       Vann
+        🐻
+```
+
+Different name colors can distinguish players before character customization exists.
+
+---
+
+# 15. Proximity Voice Chat — Future Stage
+
+Voice chat should **not** be implemented during the earliest stages.
+
+Eventually use:
+
+```text
+WebRTC
++
+Web Audio API
++
+Three.js player positions
++
+Socket.IO signaling
+```
+
+Responsibilities:
+
+### WebRTC
+
+Carries microphone audio.
+
+### Socket.IO
+
+Handles connection/signaling information.
+
+### Three.js
+
+Provides player coordinates.
+
+### Web Audio API
+
+Provides:
+
+- distance attenuation
+- directional sound
+- left/right spatialization
+- maximum hearing distance
+
+Concept:
+
+```text
+near player
+→ loud
+
+medium distance
+→ quieter
+
+far player
+→ inaudible
+```
+
+Wall occlusion is a stretch goal.
+
+Do not implement voice chat until normal multiplayer movement is stable.
+
+---
+
+# 16. Recommended Project Structure
+
+An initial structure could become:
+
+```text
+project/
+│
+├── client/
+│   ├── public/
+│   │   ├── models/
+│   │   │   ├── gallery.glb
+│   │   │   └── character.glb
+│   │   │
+│   │   └── test-art/
+│   │
+│   └── src/
+│       ├── main.js
+│       │
+│       ├── scene/
+│       │   ├── createScene.js
+│       │   └── loadGallery.js
+│       │
+│       ├── player/
+│       │   ├── createPlayer.js
+│       │   ├── movement.js
+│       │   ├── animations.js
+│       │   └── camera.js
+│       │
+│       ├── artwork/
+│       │   ├── artworkManager.js
+│       │   └── imagePlacement.js
+│       │
+│       ├── multiplayer/
+│       │   ├── socket.js
+│       │   └── remotePlayers.js
+│       │
+│       ├── voice/
+│       │   └── proximityVoice.js
+│       │
+│       └── ui/
+│           ├── createGallery.js
+│           └── joinGallery.js
+│
+└── server/
+    ├── server.js
+    ├── rooms.js
+    └── players.js
+```
+
+Do not create every file immediately.
+
+Split files when the feature actually exists.
+
+---
+
+# 17. DEVELOPMENT STAGES
+
+The coding agent should follow these stages in order.
+
+Do not skip ahead unless the team explicitly requests it.
+
+---
+
+# STAGE 0 — Repository and Development Setup
+
+## Goal
+
+Everyone can clone the repository and run the same project.
+
+## Tasks
+
+1. create Git repository
+2. create Vite frontend
+3. install Three.js
+4. confirm `npm install`
+5. confirm `npm run dev`
+6. add `.gitignore`
+7. create basic README
+8. commit the working starter project
+
+## Success Condition
+
+Every teammate can:
+
+```bash
+git clone ...
+npm install
+npm run dev
+```
+
+and see the starter page.
+
+---
+
+# STAGE 1 — Show the 3D Scene in the Browser
+
+## THIS SHOULD BE THE FIRST REAL HACKATHON TASK
+
+When the team first sits down in the hacking room, do **not** start with multiplayer.
+
+Do not start with Bluesky.
+
+Do not start with artwork uploads.
+
+Do not start with voice chat.
+
+The first goal is:
+
+> The Blender gallery appears inside the website.
+
+## Step 1
+
+Export the current gallery from Blender as:
+
+```text
+gallery.glb
+```
+
+Place it in:
+
+```text
+client/public/models/gallery.glb
+```
+
+## Step 2
+
+Create a Three.js scene.
+
+Need:
+
+- Scene
+- PerspectiveCamera
+- WebGLRenderer
+- resize handling
+- animation/render loop
+
+## Step 3
+
+Use `GLTFLoader`.
+
+Load:
+
+```text
+/models/gallery.glb
+```
+
+## Step 4
+
+Add the loaded scene:
+
+```js
+scene.add(gltf.scene);
+```
+
+## Step 5
+
+Position the development camera manually.
+
+Do not build the character controller yet.
+
+Use a temporary camera position that lets the team inspect the room.
+
+## Step 6
+
+Confirm:
+
+- geometry appears
+- materials appear
+- scale looks correct
+- artwork Empty objects exist
+- `PlayerSpawn` exists
+- imported lights can be inspected
+
+## Debugging
+
+Print object names:
+
+```js
+gltf.scene.traverse((object) => {
+  console.log(object.name, object.type);
+});
+```
+
+The team should be able to find:
+
+```text
+ArtSlot_01
+ArtSlot_02
+...
+PlayerSpawn
+```
+
+## Success Condition
+
+Open browser:
+
+```text
+http://localhost:...
+```
+
+and see the Blender gallery.
+
+Nothing else matters yet.
+
+---
+
+# STAGE 2 — Understand the Loaded Blender Scene
+
+## Goal
+
+Prove that Blender objects can control the web scene.
+
+## Tasks
+
+1. find `PlayerSpawn`
+2. log its coordinates
+3. find `ArtSlot_01`
+4. log its coordinates
+5. add a temporary Three.js cube at `PlayerSpawn`
+6. add a temporary plane at `ArtSlot_01`
+
+## Success Condition
+
+A cube appears where a player will eventually spawn.
+
+A plane appears exactly where an artwork will eventually be displayed.
+
+This stage proves:
+
+```text
+Blender anchors
+        ↓
+Three.js
+```
+
+works correctly.
+
+---
+
+# STAGE 3 — Basic Artwork Placement
+
+## Goal
+
+Display hardcoded test images in the gallery.
+
+## Tasks
+
+1. place several test JPG/PNG images in `public/test-art`
+2. load image textures
+3. create plane geometry
+4. preserve aspect ratio
+5. place planes at `ArtSlot_01`, `ArtSlot_02`, etc.
+6. offset artwork slightly from the wall if needed to prevent z-fighting
+
+## Do Not Build Yet
+
+- external APIs
+- uploading
+- frames
+- drag/drop rearranging
+- advanced sizing system
+
+## Success Condition
+
+Several real images appear correctly on the gallery walls.
+
+---
+
+# STAGE 4 — Load the Character
+
+## Goal
+
+Put the real character in the gallery.
+
+## Tasks
+
+1. finish Blender character file
+2. combine Idle, Walk and Run onto one rig
+3. export `character.glb`
+4. load GLB with Three.js
+5. inspect available animations
+6. place character at `PlayerSpawn`
+7. play Idle animation
+
+## Success Condition
+
+The character stands inside the gallery at the intended spawn point and continuously plays Idle.
+
+---
+
+# STAGE 5 — Character Movement
+
+## Goal
+
+Walk around the gallery.
+
+## Tasks
+
+1. keyboard input
+2. WASD movement
+3. character translation
+4. smooth character rotation
+5. Shift to run
+6. animation state switching
+
+Pseudo state:
+
+```text
+no movement → Idle
+movement → Walk
+Shift + movement → Run
+```
+
+## Success Condition
+
+One user can walk and run through the gallery.
+
+---
+
+# STAGE 6 — Third-Person Camera
+
+## Goal
+
+Make the gallery feel like a small third-person game.
+
+## Tasks
+
+1. camera follow offset
+2. mouse yaw
+3. mouse pitch
+4. camera orbit around player
+5. smooth camera movement
+6. movement relative to camera direction
+7. character rotates toward movement
+
+## Success Condition
+
+The user can:
+
+- rotate camera around character
+- move based on camera direction
+- explore gallery comfortably
+
+---
+
+# STAGE 7 — Basic Collision
+
+## Goal
+
+Prevent users from walking through walls.
+
+## First Version
+
+Use simple collision.
+
+Do not build a full physics simulation.
+
+Possible approaches:
+
+- simple bounding boxes
+- raycasting
+- lightweight collision library if needed
+
+## Success Condition
+
+Player stays inside gallery and cannot walk directly through major walls.
+
+---
+
+# STAGE 8 — Website UI
+
+## Goal
+
+Create the basic non-3D application flow.
+
+Pages / states:
+
+```text
+Landing
+   ↓
+Create Gallery
+or
+Join Gallery
+```
+
+Create flow:
+
+```text
+enter display name
+      ↓
+select artwork
+      ↓
+create gallery
+```
+
+Join flow:
+
+```text
+enter room code
+      ↓
+enter display name
+      ↓
+join
+```
+
+Do not polish heavily yet.
+
+---
+
+# STAGE 9 — Bluesky Artwork Integration
+
+## Goal
+
+Retrieve artwork without building a full file-storage system.
+
+## Intended Flow
+
+```text
+enter Bluesky handle
+       ↓
+fetch recent posts
+       ↓
+keep posts containing images
+       ↓
+show thumbnails
+       ↓
+select up to number of ArtSlots
+       ↓
+create gallery
+```
+
+## Important Development Rule
+
+Before implementing this stage, the hardcoded artwork system must already work.
+
+The Bluesky feature should only replace:
+
+```text
+where image URLs come from
+```
+
+It should **not** replace the artwork rendering system.
+
+Architecture:
+
+```text
+Hardcoded Image URLs
+        ↓
+ArtworkManager
+        ↓
+Three.js planes
+
+later becomes
+
+Bluesky Image URLs
+        ↓
+ArtworkManager
+        ↓
+Three.js planes
+```
+
+---
+
+# STAGE 10 — Multiplayer Server
+
+## Goal
+
+Connect two browser tabs.
+
+Start with cubes.
+
+Do not immediately synchronize animated characters.
+
+## Server
+
+Create Node + Socket.IO server.
+
+## First Multiplayer Test
+
+Browser A:
+
+```text
+cube A
+```
+
+Browser B:
+
+```text
+cube B
+```
+
+Each should see the other move.
+
+## Synchronize
+
+Initially:
+
+```text
+id
+x
+y
+z
+rotation
+```
+
+## Success Condition
+
+Two browser windows show two independently moving objects.
+
+---
+
+# STAGE 11 — Multiplayer Characters
+
+## Goal
+
+Replace network cubes with actual player models.
+
+## Tasks
+
+1. create remote player instances
+2. show same low-poly animal model for everyone
+3. sync position
+4. sync rotation
+5. sync animation name
+6. interpolate remote movement
+7. remove character on disconnect
+
+## Success Condition
+
+Two people enter the room and see each other's animated characters walking.
+
+---
+
+# STAGE 12 — Usernames and Colors
+
+## Goal
+
+Make users distinguishable.
+
+Each player gets:
+
+- display name
+- name label
+- random or assigned name-tag color
+
+Example:
+
+```text
+       Alex
+        🐻
+```
+
+Do not build full character customization.
+
+---
+
+# STAGE 13 — Room Codes
+
+## Goal
+
+Create actual gallery rooms.
+
+Flow:
+
+```text
+Person A
+Create Gallery
+    ↓
+server generates room code
+    ↓
+K7PJ3
+```
+
+Person B:
+
+```text
+Join Gallery
+    ↓
+K7PJ3
+    ↓
+same room
+```
+
+The server should separate players by room.
+
+---
+
+# STAGE 14 — Gallery Artwork Shared Across Room
+
+## Goal
+
+Everyone joining the same room sees the same selected artwork.
+
+Room data can include:
+
+```js
+{
+  roomId: "K7PJ3",
+  owner: "Vann",
+  artworks: [
+    "...",
+    "...",
+    "..."
+  ]
+}
+```
+
+When someone joins:
+
+```text
+server sends gallery artwork list
+       ↓
+their browser places images into ArtSlots
+```
+
+The server does not send the actual 3D environment.
+
+---
+
+# STAGE 15 — Proximity Voice Chat
+
+Only begin once multiplayer is stable.
+
+## Stack
+
+```text
+WebRTC
+Socket.IO signaling
+Web Audio API
+Three.js positions
+```
+
+## First Voice Milestone
+
+Two users can hear each other.
+
+No proximity yet.
+
+## Second Milestone
+
+Volume changes based on distance.
+
+## Third Milestone
+
+Directional audio.
+
+## Stretch
+
+Walls muffle voice.
+
+---
+
+# STAGE 16 — Polish
+
+Only after the core loop works.
+
+Possible polish:
+
+- improved lighting
+- better character transitions
+- props
+- loading screen
+- smoother networking
+- artwork interaction
+- enlarge artwork on click
+- microphone indicator
+- room owner controls
+- gallery intro
+- sound effects
+
+---
+
+# 18. Team Development Strategy
+
+The team has 4 people.
+
+Do not have all 4 people edit the same file.
+
+A possible responsibility split:
+
+## Person A — Gallery / Blender / Scene Integration
+
+- gallery GLB
+- Blender anchors
+- player spawn
+- lights
+- loading the gallery
+- basic environment setup
+
+## Person B — Player
+
+- character GLB
+- animations
+- movement
+- camera
+- collision
+
+## Person C — Artwork
+
+- image selection
+- artwork manager
+- Bluesky integration
+- image placement
+
+## Person D — UI / Multiplayer
+
+- landing/create/join UI
+- Socket.IO server
+- room creation
+- room joining
+- remote players
+
+This is not a permanent ownership rule.
+
+Team members should still understand the overall system.
+
+---
+
+# 19. Git Workflow
+
+Keep Git simple.
+
+Main branch:
+
+```text
+main
+```
+
+Feature branches:
+
+```text
+feature/gallery-loader
+feature/player-controller
+feature/artwork-system
+feature/multiplayer
+```
+
+Workflow:
+
+```bash
+git checkout main
+git pull
+git checkout -b feature/example
+```
+
+Commit small working changes.
+
+Push branch.
+
+Open pull request.
+
+Merge after another teammate checks the change.
+
+Avoid everyone editing `main` directly.
+
+---
+
+# 20. Coding Agent Rules
+
+This section is specifically for AI coding agents.
+
+## RULE 1 — Do Not One-Shot the Application
+
+Never generate the entire project at once.
+
+Work on the current development stage only.
+
+---
+
+## RULE 2 — Explain Before Large Changes
+
+Before implementing a major system, briefly explain:
+
+- what files will change
+- what the system does
+- how it connects to existing systems
+
+The team wants to learn.
+
+---
+
+## RULE 3 — Prefer Small, Testable Changes
+
+Good task:
+
+> Load `gallery.glb` and show it in the scene.
+
+Bad task:
+
+> Build gallery, multiplayer, character movement, Bluesky, and voice chat.
+
+---
+
+## RULE 4 — Stop at Milestones
+
+After completing a stage, provide:
+
+1. what was implemented
+2. how to run it
+3. how to test it
+4. what the important code does
+5. what the next recommended step is
+
+Do not automatically continue into the next large feature unless requested.
+
+---
+
+## RULE 5 — Do Not Replace Working Architecture Without Reason
+
+If Three.js is already being used, do not migrate to:
+
+- Babylon.js
+- React Three Fiber
+- Unity WebGL
+- another engine
+
+unless the team explicitly requests the change.
+
+---
+
+## RULE 6 — Do Not Add Unnecessary Dependencies
+
+Before installing a package, explain why it is needed.
+
+Prefer native Three.js / browser APIs when reasonable.
+
+---
+
+## RULE 7 — Keep Code Understandable
+
+Avoid unnecessary design patterns.
+
+Avoid overengineering.
+
+Prefer:
+
+```js
+loadGallery()
+createPlayer()
+updatePlayer()
+placeArtwork()
+```
+
+over deeply abstracted enterprise architecture.
+
+---
+
+## RULE 8 — Preserve Blender Naming Contracts
+
+Do not casually rename references such as:
+
+```text
+ArtSlot_01
+PlayerSpawn
+```
+
+These names form a contract between Blender and Three.js.
+
+---
+
+## RULE 9 — Build With Temporary Objects When Dependencies Are Missing
+
+If the character is not ready:
+
+```text
+use a cube
+```
+
+If final artwork isn't ready:
+
+```text
+use test images
+```
+
+If multiplayer characters aren't ready:
+
+```text
+network cubes
+```
+
+Do not block one feature because another feature is unfinished.
+
+---
+
+## RULE 10 — Keep Features Replaceable
+
+Example:
+
+The artwork renderer should accept a list of image URLs.
+
+Initially:
+
+```text
+hardcoded URLs
+```
+
+Later:
+
+```text
+Bluesky URLs
+```
+
+The rendering system should not care where the URLs came from.
+
+---
+
+# 21. Feature Dependencies
+
+High-level dependency graph:
+
+```text
+Vite + Three.js
+      ↓
+Gallery loads
+      ↓
+Blender anchors work
+      ↓
+ ┌───────────────┐
+ ↓               ↓
+Artwork       Character
+system         loader
+                 ↓
+              movement
+                 ↓
+               camera
+                 ↓
+             collision
+ └───────┬───────┘
+         ↓
+      UI flow
+         ↓
+      Bluesky
+         ↓
+   Multiplayer cubes
+         ↓
+Multiplayer characters
+         ↓
+      Room codes
+         ↓
+ Shared artwork state
+         ↓
+    Voice chat
+         ↓
+       Polish
+```
+
+---
+
+# 22. What NOT to Build Early
+
+Do not prioritize:
+
+- accounts
+- database-heavy architecture
+- character customization
+- multiple gallery buildings
+- multiple floors
+- chat
+- likes
+- reactions
+- inventory
+- procedural gallery generation
+- dynamic frame geometry
+- VR
+- advanced physics
+- wall-based voice occlusion
+- sophisticated optimization before profiling
+- Instagram integration
+
+---
+
+# 23. Minimum Successful Hackathon Demo
+
+A successful demo is:
+
+```text
+Person A opens website
+      ↓
+enters name
+      ↓
+selects artwork
+      ↓
+creates gallery
+      ↓
+receives room code
+      ↓
+enters 3D gallery
+      ↓
+walks around
+```
+
+Then:
+
+```text
+Person B opens website
+      ↓
+enters room code
+      ↓
+joins same gallery
+      ↓
+both users see each other
+      ↓
+both users walk around
+      ↓
+both users see the same artwork
+```
+
+If this works reliably, the project has proven its core idea.
+
+Voice chat is excellent if finished, but the project should not fail just because voice is unfinished.
+
+---
+
+# 24. First Hackathon Session Checklist
+
+When everyone sits down:
+
+## First 30–60 minutes
+
+```text
+[ ] everyone pulls repository
+[ ] everyone can run frontend
+[ ] current gallery.glb is added
+[ ] Three.js scene exists
+[ ] gallery appears in browser
+```
+
+Do not split into advanced features before this common baseline works.
+
+## Then verify Blender anchors
+
+```text
+[ ] print ArtSlot names
+[ ] print PlayerSpawn
+[ ] spawn temporary cube at PlayerSpawn
+[ ] place temporary plane at ArtSlot_01
+```
+
+At this point the team has proven that Blender and Three.js communicate correctly.
+
+## Only then split work
+
+Possible parallel work:
+
+```text
+Person A
+gallery / lighting / Blender fixes
+
+Person B
+character loading + movement
+
+Person C
+artwork placement + selection
+
+Person D
+UI / Socket.IO server skeleton
+```
+
+---
+
+# 25. Mental Model for the Whole Project
+
+Think of the system as four layers.
+
+```text
+1. BLENDER
+visual world
+models
+anchors
+animations
+
+        ↓
+
+2. THREE.JS
+renders world
+controls player
+camera
+artwork
+animations
+
+        ↓
+
+3. SOCKET.IO SERVER
+rooms
+player state
+multiplayer events
+
+        ↓
+
+4. WEB UI / APIs
+names
+room codes
+Bluesky selection
+microphone controls
+```
+
+And later:
+
+```text
+WEBRTC
+↓
+voice between players
+```
+
+---
+
+# 26. Final Guiding Principle
+
+At every stage, ask:
+
+> What is the smallest version of this feature that proves the idea works?
+
+Examples:
+
+```text
+Gallery:
+show GLB
+
+Artwork:
+one image on one ArtSlot
+
+Character:
+Idle only
+
+Movement:
+WASD
+
+Multiplayer:
+two cubes
+
+Rooms:
+one generated code
+
+Voice:
+two people can hear each other
+```
+
+Once the small version works, improve it.
+
+The project should grow through working layers rather than through one giant code-generation attempt.
