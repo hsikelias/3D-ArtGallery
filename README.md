@@ -1,244 +1,160 @@
-# HackNite: 3D Art Gallery
+﻿# HackNite: 3D Art Gallery
 
-## Online galleries (PLAN.md Stages 11?14)
+A multiplayer art gallery in the browser. Artists upload their work, create a room, and share its code. Visitors join the same exhibition as pastel ghost avatars, explore the space, and see one another moving through the gallery.
 
-The main page now creates and joins server rooms through Socket.IO. Artists and
-visitors see each other's named ghosts and movement, and load the same uploaded
-artwork from the server. The artist's name is reserved by the backend. Browser
-storage is used only for an unfinished artist draft.
+The project combines a Blender environment with Three.js rendering and a Node.js multiplayer server. Artwork comes from the artist's uploads; visitors do not need to download or configure any files.
 
-See [MULTIPLAYER.md](MULTIPLAYER.md) for startup commands, two-device verification,
-server limits, and deployment options (one Node service, or Vercel frontend plus a
-Node backend). Run both the frontend and server during development. The separate
-cube test remains available at /multiplayer-test.html for transport diagnostics.
+## The experience
 
-## Artwork renderer and development fixtures
+1. The artist chooses images, enters a display name, and creates a gallery.
+2. The server stores the images for the session and generates a six-digit room code.
+3. Visitors open the same website and join using that code and their own names.
+4. Everyone sees the same artwork and the other players' ghosts, names, colors, and movement.
 
-The renderer supports `ArtSlot_01` through `ArtSlot_15`. Landscape and portrait images keep their original proportions. The following supplied images remain as development fixtures; the entry page displays the artist's uploads instead.
+Click the gallery to focus the controls. Use **WASD** to move, **drag** to orbit the camera, **scroll** to zoom, and **Escape** to release keyboard focus. The gallery menu provides room actions, and the reset button returns the player and camera to their spawn.
 
-| Slot | Artwork filename |
+## Technology
+
+| Technology | Role |
 | --- | --- |
-| ArtSlot_01 | CottonRiver.jpg |
-| ArtSlot_02 | Elephant.jpg |
-| ArtSlot_03 | Kanye.jpg |
-| ArtSlot_04 | LadyInTheForest.jpg |
-| ArtSlot_05 | MarioDTS.png |
-| ArtSlot_06 | MontogomeryCalendar.png |
-| ArtSlot_07 | Nest.jpg |
-| ArtSlot_08 | Portrait Study1.png |
-| ArtSlot_09 | Pure Souls.png |
-| ArtSlot_10 | QueensGambit.jpg |
-| ArtSlot_11 | Sargent.jpg |
-| ArtSlot_12 | Sargent2.jpg |
-| ArtSlot_13 | Sketch1.jpg |
-| ArtSlot_14 | Spoon.jpg |
-| ArtSlot_15 | Study.jpg |
+| Blender / GLB | Gallery architecture, light fixtures, artwork anchors, and player references |
+| Three.js | Scene rendering, artwork textures, ghost geometry, camera, and spatial calculations |
+| JavaScript, HTML, CSS | Application logic, forms, upload previews, menus, and name labels |
+| Vite | Frontend development server and production build |
+| Node.js / Socket.IO | Room membership, shared identities, movement events, and image uploads |
+| IndexedDB | Saves the artist's unfinished draft locally |
 
-To use your own test artwork:
+The frontend uses plain JavaScript. The 3D scene and the normal page interface are separate systems connected by the gallery runtime.
 
-1. Copy JPEG/PNG files into `client/public/test-art/`.
-2. Edit the filename list in `client/src/artwork/testImages.js`, for example `my-painting.jpg`. Use the exact filenames, including capitalization and extension. Spaces are encoded automatically when building the URLs. Adding a file alone does not add it to the selection.
-3. The legacy `src/main.js` inspection entry uses this fixture list. The main page uses uploads through the popup instead.
-4. Image order maps to slot order. Supply up to 15 URLs; fewer images leave the remaining slots empty. Failed images leave their assigned slot empty and report details in the console.
+## Project structure
 
-The renderer uses front-facing image planes on brown rectangular backings. Image aspect ratios are preserved within an 8-by-8-unit display limit; no cropping or stretching occurs. Each backing adds a 0.25-unit border on every edge (0.5 extra total width and height) and has a tuned depth of 0.25 units. The backing stays in front of the wall, with its image surface projecting into the room. The image sits 0.01 units in front of the backing to avoid flickering. Tune `artworkFrame` in `src/artwork/imagePlacement.js` to change the border, depth, or brown color. These dimensions are gallery units, independent of image pixel resolution. Artwork uses an unlit material so gallery preview lighting does not obscure its colors; the brown backing responds to scene lighting.
-
-`src/artwork/slotConfig.js` contains manually configured world-space rotations, size limits, and wall offsets for all 15 slots, including the interior divider. `ArtSlot_05` has a small position correction because that anchor sits farther from the wall. No Blender file changes are needed. The developer can tune these values as the gallery layout evolves.
-
-### Artwork renderer integration
-
-The artwork renderer has no form or upload dependencies. `galleryRuntime.js` creates its manager and `galleryEntry.js` passes the shared artwork URLs returned by the server:
-
-```js
-const artworkManager = createArtworkManager({ scene, artSlots });
-const result = await artworkManager.setImages(selectedImageUrls);
-// result.loadedCount, result.errors [{ slot, url, message }], result.superseded
+```text
+client/
+  index.html                 Gallery viewport and create/join interface
+  public/models/             Blender gallery asset
+  src/
+    galleryEntry.js          Forms, upload previews, and room transitions
+    galleryRuntime.js        Connects the scene, artwork, and players
+    scene/                   Scene setup, GLB loading, and lighting
+    artwork/                 Image placement, sizing, and frame geometry
+    player/                  Ghost model, movement, camera follow, and collision
+    multiplayer/             Server connection and incoming player updates
+    rooms/                   Local draft storage and image validation
+  test/                      Frontend behavior, artwork, and movement tests
+  vite.config.js             Build settings and local backend proxies
+server/
+  server.js                  Starts the HTTP and Socket.IO server
+  app.js                     HTTP routes and multiplayer server setup
+  galleryRooms.js            Rooms, usernames, colors, images, and player state
+  staticClient.js            Serves the built website
+  test/                      Network integration and server tests
+PLAN.md                      Development roadmap and implementation conventions
+MULTIPLAYER.md               Deployment, room lifecycle, and demo instructions
 ```
 
-Reuse this manager for later selections. `setImages` replaces previous planes and releases their textures; slow results from an older selection cannot overwrite a newer one. Use `clear()` for an empty gallery and `dispose()` when leaving the scene. The component that creates local object URLs owns revoking them once they are no longer needed by previews or texture loading. Shared room uploads still require URLs accessible to other browsers.
+The main page starts through `galleryEntry.js`. `src/main.js` is an older standalone inspection entry. The separate `multiplayer-test.html` page uses cubes to diagnose networking independently of the full gallery.
 
-The backing is a child of each image plane and is cleaned up with it; the image-selection API is unchanged. `main.js` remains a legacy inspection entry, not the main page's entry point.
+## How it is implemented
 
-From `client/`, verify with:
+### 1. Load the gallery
 
-```bash
-node --test test/artwork.test.js
-npm run build
-```
+`createScene.js` creates the Three.js scene, perspective camera, WebGL renderer, resize handling, and render loop. `loadGallery.js` loads the Blender GLB with `GLTFLoader` and discovers its named artwork and spawn anchors.
 
-The tests cover aspect-ratio fitting, wall clearance for all 15 slots against the actual GLB, failure isolation, replacement cleanup, and overlapping image selections. Also check the images visually in the running app before merging.
+Blender supplies the environment's shape and reference locations; JavaScript supplies application behavior. `configureGalleryPreview.js` handles missing materials, floor color, and supporting lights without modifying the exported model.
 
-## Ghost model preview (`feature/ghost-mesh`)
+### 2. Turn uploaded images into an exhibition
 
-Following PLAN.md sections 8 and 14, `client/src/player/ghost_mesh.js` builds a
-reusable Pac-Man-style ghost with a rounded dome, cylindrical body, scalloped
-skirt, and eyes. Each instance has its own body material and an attached name
-label. The requested preview overrides the plan's static, solid, fixed-palette
-defaults: it uses a generated pastel hex color, 85% opacity, and gentle bobbing.
-The model file contains no movement or camera logic; preview bobbing and spawn
-placement live in `galleryRuntime.js` (or `main.js` for the legacy inspection entry), and label rendering lives in `createScene.js`.
+The entry interface validates the artist's files and creates local thumbnail previews. When the artist creates a room, the browser sends the image bytes to the server. The server returns shared HTTP URLs that every visitor can load. IndexedDB keeps only the local draft for the active create/join flow; it is not the source of online room membership.
 
-Run `cd client` then `npm run dev`. The ghost replaces the Blender `Player`
-reference at its original floor position, with its height matched to that reference.
-`PlayerSpawn` is relocated there at runtime; the GLB stays unchanged.
-Movement and the third-person camera come from `origin/feature/player-movement`
-(`debba03`), following PLAN.md sections 9–10. Click the gallery and use WASD;
-drag to orbit, scroll to zoom, and press Escape to release keyboard focus.
-Reset returns both the player and camera to the new spawn. Reload to generate a
-new pastel color. The outlined name follows the ghost; visual bobbing does not
-move the camera or player pivot. Online rooms use the server-assigned identity and color.
+`artworkManager.js` accepts the room's image URLs. `imagePlacement.js` fits each image inside its display area without stretching or cropping and places it in front of a simple brown backing. Blender artwork anchors determine the locations; `slotConfig.js` supplies wall-facing rotations, size limits, and offsets.
 
-### Exterior collision (PLAN.md Stage 7)
+The same renderer handles every visitor's exhibition. Replacing artwork releases the previous textures and geometry, and failed images are reported individually.
 
-The ghost now collides with the eight outside wall segments, including the
-narrow entrance and its shoulders. Interior partitions remain passable by
-design. `exteriorCollision.js` stores the measured X/Z outline of this GLB;
-update it if the exterior is remodeled. The controller supplies the ghost's
-radius and resolves short movement steps independently along X/Z to slide along
-walls. Bobbing and camera orbit do not change the collision footprint.
+### 3. Build and control the ghost
 
-Run `node --test test/exteriorCollision.test.js` inside `client` for collision
-checks. In the browser, walk into each outside wall and corner, move diagonally
-along a wall, cross the entrance, and walk through the inside partitions.
-Camera collision remains a separate future feature. Stop here to review Stage 7.
+`ghost_mesh.js` creates a reusable Pac-Man-inspired ghost from Three.js geometry: a rounded head, cylindrical body, scalloped skirt, and eyes. Each ghost has its own body material at 85% opacity and a matching name label with a black outline. `CSS2DRenderer` positions the HTML labels above the ghosts.
 
-A browser-based multiplayer art gallery with colored ghost avatars. See [PLAN.md](PLAN.md) for the staged roadmap.
+The model contains no movement or camera code. `createPlayerController.js` handles keyboard input, movement relative to the camera, smooth turning, and a third-person follow camera. The local player moves at a fixed floor height; gentle bobbing affects only the visual model, keeping the movement position and camera steady.
 
-## Current milestone: artwork placement with player controls
+The Blender player reference establishes the avatar scale and initial floor level. Online rooms then assign individual spawn positions and pastel colors on the server so arrivals are separated and everyone sees consistent identities.
 
-The frontend loads the Blender gallery and displays the artist's selected artwork. Online rooms synchronize colored ghosts, names, movement, and shared images. Voice remains a later stage.
+### 4. Keep the player inside the building
 
-## Requirements
+`exteriorCollision.js` describes the gallery's outer wall outline independently of its combined Blender mesh. Movement accounts for the ghost's radius and resolves short steps along each horizontal axis, allowing the player to slide along walls.
 
-- Git and access to this repository.
-- Node.js and npm. Vite 8 requires Node.js `^20.19.0 || >=22.12.0`; use the same supported version across the team. This setup was verified with Node.js 26.4.0 and npm 12.0.1.
+Exterior walls block movement; interior partitions remain passable. The outline must be updated if the building's exterior changes. Camera collision is not implemented.
 
-Check your installation:
+### 5. Synchronize the room
 
-```bash
-node --version
-npm --version
-git --version
-```
+`galleryConnection.js` connects the browser to the Socket.IO gallery namespace. Creating or joining a room returns the local player's identity, the current player list, and shared artwork URLs.
+
+The server assigns player IDs and colors and reserves usernames within each room. Guests cannot use the artist's name, including capitalization, whitespace, or Unicode compatibility variants. The artist's name stays reserved for the room's lifetime.
+
+The local controller sends changed positions and headings at up to 20 updates per second. The server validates movement packets and broadcasts them only to other members of that room. `galleryRuntime.js` creates remote ghosts and interpolates their movement between updates. Departures remove the associated ghost and label; brief network interruptions can resume the existing session.
+
+Each browser renders its own copy of the gallery. The server shares room data and player updates rather than repeatedly transmitting the 3D environment.
+
+### 6. Serve the application
+
+During development, Vite serves the frontend and proxies `/socket.io` and `/api` to the Node server. In production, the Node server can serve the compiled frontend, uploaded artwork, and multiplayer connection from one public URL.
+
+A separately hosted frontend is also supported through the configuration described in [MULTIPLAYER.md](MULTIPLAYER.md).
 
 ## Run locally
 
-For a new checkout:
+Use Node.js 24 and npm. From the repository root, install both sets of dependencies:
 
 ```bash
-git clone https://github.com/hsikelias/3D-ArtGallery.git
-cd 3D-ArtGallery
+npm ci --prefix client
+npm ci --prefix server
 ```
 
-If you already have the repository, open a terminal in that folder instead. Use the branch being reviewed, or updated `main` once the feature has been merged.
-
-Run frontend commands inside `client`, not the repository root:
+Start the backend in one terminal:
 
 ```bash
-cd client
-npm install
-npm run dev
+npm run dev --prefix server
 ```
 
-Open the local URL printed by Vite (usually http://localhost:5173). The page should display the gallery and report the artwork anchors, spawn anchor, and imported lights. Stop the server with `Ctrl+C`.
-
-For a clean install using the committed lockfile, use `npm ci` instead of `npm install`. Commit `package-lock.json` when dependencies change; never commit `node_modules` or `dist`.
-
-## Build and preview
-
-From `client/`:
+Start the frontend in another:
 
 ```bash
-npm run build
-npm run preview
+npm run dev --prefix client
 ```
 
-The build creates `client/dist/`. Preview serves that production build locally; open the URL printed in the terminal. Stop with `Ctrl+C`.
+Open the URL printed by Vite. Both processes are required for online rooms.
 
-## What the files do
-
-| File | Purpose |
-| --- | --- |
-| `client/index.html` | Gallery viewport, inspection panel, and JavaScript entry point |
-| `client/src/galleryEntry.js` | Create/join UI, shared artwork, and online room connection |
-| `client/src/galleryRuntime.js` | Scene, player, and remote ghost rendering |
-| `server/galleryRooms.js` | Room membership, names, images, and movement broadcasts |
-| `client/src/main.js` | Legacy standalone inspection entry |
-| `client/src/style.css` | Full-window canvas and inspection panel styling |
-| `client/package.json` | Dependencies and dev/build/preview commands |
-| `client/package-lock.json` | Exact resolved dependency versions for teammates |
-| `.gitignore` | Excludes dependencies, generated builds, and local environment files |
-
-Vite serves the frontend during development and bundles it for production. Three.js renders the imported gallery. The Node backend is required for online rooms.
-
-## Team Git workflow
-
-Work on one small feature branch at a time. From the repository root, with your previous work committed:
+To build and run the complete application through one server instead:
 
 ```bash
-git switch main
-git pull --ff-only
-git switch -c feature/your-task
+npm run build --prefix client
+npm start --prefix server
 ```
 
-After implementing and testing, inspect your changes with `git status` and `git diff`. Stage only intended files, commit, and push your branch. Open a pull request targeting `main`; another teammate should run it before merging.
+Open `http://localhost:3002`, unless you configured a different server port.
 
-To review the artwork feature after its author pushes it:
+## Verification
+
+Run these commands from the repository root:
 
 ```bash
-git fetch origin
-git switch feature/artwork-placement
-cd client
-npm ci
-node --test
-npm run build
-npm run dev
+npm run build --prefix client
+node --test client/test/*.test.js
+npm test --prefix server
 ```
 
-Verify all 15 artworks, frame depth, image proportions, ghost movement, resize handling, and scene diagnostics. Record the result on the PR. Once merged on GitHub, everyone returns to the repository root, switches to `main`, and runs `git pull --ff-only`. A local merge alone does not update GitHub. Preserve uncommitted work before switching branches.
+The tests cover artwork fitting and cleanup, exterior collision, player headings, the create/join interface, shared image delivery, room isolation, username protection, and reconnect behavior. Build first because the server's production smoke test checks the compiled website.
 
-## Current verification checklist
+For a practical check, create a room in one browser and join from a separate browser or device. Confirm that both see the same artwork and each other's movement.
 
-- [ ] Each teammate can install dependencies and run the frontend.
-- [ ] The gallery geometry and materials appear, and its scale is reviewed against the Blender reference.
-- [ ] All 15 artworks load with correct proportions and brown backings clear of the walls.
-- [ ] Ghost movement and exterior collision still work.
-- [ ] `node --test` succeeds from `client/`.
-- [ ] `npm run build` succeeds.
-- [ ] A teammate reviews the feature PR before it is merged.
+## Current scope
 
-Next: rehearse with two separate browsers/devices using MULTIPLAYER.md before deploying the demo.
+Rooms support up to 24 players and 15 uploaded JPEG, PNG, or WebP images, with a 2 MiB limit per image. Rooms and uploads currently live in server memory and are lost when the server restarts. Host credentials stay in tab memory, so the artist should keep their tab open for the session.
 
-# Team Members
-1. Lekish Sai Podili
-2. Brando Vasquez
-3. Subanee Acharya
-4. Mateus Landowski
+Controls currently target keyboard and mouse. Persistent galleries, proximity voice chat, and camera collision remain future work. See [PLAN.md](PLAN.md) for the roadmap and [MULTIPLAYER.md](MULTIPLAYER.md) for hosting details, session limits, and presentation setup.
 
-## Inspect the gallery (Stage 1)
+## Team
 
-- `src/scene/createScene.js` creates the scene, perspective camera, renderer, resize handler, render loop, and temporary OrbitControls. Camera position and target are explicit values for the current export.
-- `src/scene/loadGallery.js` loads `/models/gallery.glb`, preserves its transforms and authored materials/lights, and logs object names, world spawn coordinates, dimensions, and imported lights.
-- `src/scene/configureGalleryPreview.js` gives meshes with no exported material a matte, double-sided preview material. It adds temporary point lights at LightBulb objects only if the GLB has no actual lights. Authored materials are not overwritten.
-- The ground uses a flat warm oak color (`FLOOR_COLOR = '#b08b53'` in `configureGalleryPreview.js`). The current Floor mesh also includes walls and ceilings, so only horizontal triangles within 0.05 gallery units of its lowest level receive that color. Walls and ceilings keep their neutral material; there is no texture or GLB change. The floor still responds to room lighting.
-- Click the gallery and use WASD to move the ghost, drag to orbit, scroll to zoom, and press Escape to release keyboard focus. Reset returns the player and camera to spawn; panning is disabled by the player controller.
-- Open browser developer tools (F12), then Console, to inspect the object table.
-- Confirm 15 artwork anchors and PlayerSpawn are reported. Resize the window and check the view is not stretched.
-- The current export contains 11 visible LightBulb fixtures but no exported light objects. Inspection lighting controls a hemisphere fill plus 11 temporary point lights; turning it off leaves only any imported lights and emissive surfaces. These preview lights do not cast shadows and may illuminate through walls. Final lighting will need separate tuning.
-- The Floor mesh (which includes the room surfaces) and Player reference mesh have no assigned material in the GLB. glTF's default material loads as metallic and single-sided; this caused dark surfaces and walls disappearing from the back. The temporary fallback keeps both sides visible without modifying the GLB.
-- The ghost is constrained by exterior walls; interior partitions remain passable. The camera can still pass through walls because camera obstruction handling is not implemented.
-- Check scale visually with the Blender reference before approving. Dimensions are reported in exported units; no automatic rescaling is applied.
-- Loading errors appear in the panel and browser console.
-- The production build may report a bundle-size warning for Three.js; this is not a build failure.
-
-## Hackathon artwork direction
-
-The artwork source is images selected from the user's device; Bluesky is out of scope. The main page uploads images to the gallery server; the legacy inspection entry uses bundled JPEG/PNG fixtures. Keep `gallery.glb` unchanged and tune placement, facing direction, display dimensions, and wall offsets manually in JavaScript.
-
-- The 15 existing `ArtSlot` anchors supply world-space center positions.
-- `src/artwork/slotConfig.js` holds each slot's rotation, maximum width/height, and wall offset. Manual rotations compensate for the unrotated Blender anchors.
-- The renderer fits each image within those limits while preserving its aspect ratio, without stretching or cropping.
-- Stage 9 connects local file selection and preview to the renderer. Stage 14 adds shared upload URLs so other players can see the selected images. Local `blob:` URLs cannot serve as shared room artwork URLs.
-- Existing preview materials and lighting can be tuned in Three.js. Exact matching to Blender's render is not required for the hackathon.
-
-Artwork rendering, manual slot configuration, file selection, shared server uploads, and multiplayer integration are implemented. See MULTIPLAYER.md for the current demo lifecycle and PLAN.md for the staged roadmap.
+- Lekish Sai Podili
+- Brando Vasquez
+- Subanee Acharya
+- Mateus Landowski
