@@ -210,7 +210,7 @@ Blender should contain:
 
 Each user is represented by a simple ghost with no character animations.
 
-The ghost can be built from simple Three.js geometry or loaded as a static `ghost.glb` asset. A custom Blender character is not required.
+Build the first ghost from simple Three.js geometry. A static `ghost.glb` can replace its visual shape later while keeping the same color, username, and networking logic. A custom Blender character is not required.
 
 No Mixamo workflow, armature, skeleton, rigging, or Idle/Walk/Run clips are needed. Three.js moves and rotates the whole ghost directly in response to user input.
 
@@ -421,15 +421,38 @@ Smarter curation / rearranging can come later.
 
 # 8. Ghost Avatar System
 
-For the first version, every player uses the **same simple ghost avatar**.
+For the first version, every player uses the **same simple ghost shape**, with their own body color and username label.
 
 Users do not need character customization.
 
 Players can be distinguished using:
 
 - username
-- name-tag color
-- possibly a body/material color later
+- a distinct body/material color assigned from a palette
+
+## Reusable Ghost Construction
+
+Build a rounded head, a slightly flared body, and two black oval eyes using Three.js geometry. `LatheGeometry` is an option for forming the rounded body from a simple outline.
+
+Put the body and eyes inside a `THREE.Group`. Moving or rotating the group moves the whole ghost. Start with solid pastel body colors such as pink, blue, mint, yellow, lavender, and orange.
+
+Reuse geometry across players, but give each ghost its own body material. If cloning an existing ghost, clone its body material before changing its color so recoloring one player does not recolor others. Eyes stay black.
+
+Use one reusable function for local players, remote players, and temporary test ghosts:
+
+```js
+createGhost({ id, username, color })
+```
+
+Attach a username label above the ghost as described in Section 14. The local ghost receives keyboard movement input; remote ghosts receive network movement updates. Mouse input controls only the local camera.
+
+## Color Assignment
+
+When a player joins, the server assigns an unused color from the palette and stores it with their ID and username. Once rooms exist, assign colors within each room.
+
+If all palette colors are in use, colors may repeat; username labels still help distinguish users. A departing player's color becomes available again if no remaining player uses it.
+
+The server sends the assigned color to all clients so everyone sees the same appearance for each player. Browsers must not independently randomize remote players' colors.
 
 The ghost is a static visual object. It has no Idle, Walk, Run, bobbing, or other character animations. Movement changes its position directly.
 
@@ -518,6 +541,7 @@ The server handles:
 - joining rooms
 - leaving rooms
 - usernames
+- ghost body color assignment
 - player positions
 - player rotations
 - spawn/despawn events
@@ -538,15 +562,19 @@ An early multiplayer packet may look like:
 {
   id: "socket-id",
   username: "Alex",
+  color: "#7CB9FF",
   x: 4.2,
   y: 0,
   z: -2.1,
-  rotationY: 1.4,
-  nameColor: "#ff77aa"
+  rotationY: 1.4
 }
 ```
 
 Do not overcomplicate this schema initially.
+
+Use `id` to identify players internally, since usernames may be duplicated. `color` is the ghost's body color.
+
+Send username and color with spawn/join information, including the existing player list for a new arrival. Regular movement updates need only the player ID, position, and rotation; they do not need to resend appearance data or any animation state.
 
 ---
 
@@ -578,13 +606,13 @@ Both can still reuse much of the same ghost avatar code.
 
 Each player should display their username above their ghost.
 
-A simple implementation can use:
+Use an HTML label attached above the ghost with:
 
 ```text
 CSS2DRenderer
 ```
 
-or another lightweight label solution.
+Create a `CSS2DObject` for each label and render labels with `CSS2DRenderer` alongside the Three.js scene. Use white text on a dark background for readability across all ghost colors. Set the username with `textContent`, not `innerHTML`, and keep labels from intercepting mouse controls.
 
 Example:
 
@@ -593,7 +621,7 @@ Example:
         👻
 ```
 
-Different name colors can distinguish players before character customization exists.
+Body color and username together distinguish players. Separate name-tag colors and full character customization are not required.
 
 ---
 
@@ -930,14 +958,16 @@ Put a simple ghost avatar in the gallery.
 
 ## Tasks
 
-1. create a simple ghost using Three.js geometry, or load a static `ghost.glb`
+1. create a reusable `createGhost({ id, username, color })` using simple Three.js geometry
 2. set its scale and height relative to the gallery floor
 3. place the ghost at `PlayerSpawn`
 4. confirm that the ghost renders correctly without rigging or animation setup
+5. create three temporary stationary ghosts with different body colors and test usernames above them
+6. verify that changing one ghost's body color does not change the others
 
 ## Success Condition
 
-The ghost appears inside the gallery at the intended spawn point and remains stationary until movement input is implemented.
+The ghost appears at the intended spawn point. Three stationary test ghosts display distinct colors and readable usernames before movement is connected. Use hardcoded test identities here; server assignment comes in Stage 12. Remove the extra test ghosts after verification.
 
 ---
 
@@ -1170,7 +1200,7 @@ Replace network cubes with the simple ghost avatars.
 ## Tasks
 
 1. create remote player instances
-2. show the same simple ghost for everyone
+2. reuse `createGhost` for local and remote players
 3. sync position
 4. sync rotation
 5. interpolate remote movement
@@ -1192,7 +1222,22 @@ Each player gets:
 
 - display name
 - name label
-- random or assigned name-tag color
+- server-assigned ghost body color
+
+## Tasks
+
+1. collect the user's display name in the create/join UI
+2. assign a body color on the server using the palette from Section 8
+3. send ID, username, and color with player spawn data and the existing player list
+4. connect the username labels and per-player materials proven in Stage 4 to this server data
+5. confirm every browser sees the same username and color for each player
+6. remove labels with disconnected ghosts and release unused colors
+
+Use the shared multiplayer test session for this stage. Scope color assignment to individual rooms when Stage 13 introduces room codes.
+
+## Success Condition
+
+Two browser windows show matching usernames and body colors for all players, including when a new player joins after others are already present.
 
 Example:
 
@@ -1232,7 +1277,7 @@ K7PJ3
 same room
 ```
 
-The server should separate players by room.
+The server should separate players by room. Assign ghost colors from the colors available within that room, and include each player's username and color in the room's initial player list.
 
 ---
 
