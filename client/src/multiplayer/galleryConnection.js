@@ -1,7 +1,9 @@
 import { io } from 'socket.io-client';
 
-export function createGalleryConnection(runtime, { onStatus, onSession, onExpired }) {
-  const socket = io('/gallery', { autoConnect: false });
+export function createGalleryConnection(runtime, { onStatus, onSession, onExpired,
+  serverUrl = import.meta.env?.VITE_GALLERY_SERVER || '' } = {}) {
+  const origin = serverUrl.replace(/\/$/, '');
+  const socket = io(`${origin}/gallery`, { autoConnect: false });
   // Memory only: a duplicated tab must never inherit the host credential.
   let session = null;
   let token = null;
@@ -19,7 +21,7 @@ export function createGalleryConnection(runtime, { onStatus, onSession, onExpire
     if (socket.connected) return;
     if (!connecting) {
       connecting = new Promise((resolve, reject) => {
-        const timer = setTimeout(() => finish(new Error('Cannot reach the multiplayer server. Start npm run dev in server and restart Vite.')), 10000);
+        const timer = setTimeout(() => finish(new Error('Cannot reach the gallery server. Check your connection and try again.')), 10000);
         function finish(error) {
           clearTimeout(timer);
           socket.off('connect', connected);
@@ -28,7 +30,7 @@ export function createGalleryConnection(runtime, { onStatus, onSession, onExpire
           error ? reject(error) : resolve();
         }
         function connected() { finish(); }
-        function failed() { finish(new Error('Cannot reach the multiplayer server on port 3002. Start it and try again.')); }
+        function failed() { finish(new Error('Cannot reach the gallery server. Check your connection and try again.')); }
         socket.once('connect', connected);
         socket.once('connect_error', failed);
         socket.connect();
@@ -37,12 +39,14 @@ export function createGalleryConnection(runtime, { onStatus, onSession, onExpire
     await connecting;
   }
   function apply(value) {
+    if (origin) value.artworks = value.artworks.map(path => new URL(path, origin).href);
     session = value;
     token = value.token;
     runtime.clearRemote();
     const self = value.players.find(player => player.id === value.selfId);
     runtime.setIdentity(self);
     runtime.playerController.setSpawn(self);
+    runtime.setOnline(true);
     value.players.filter(player => player.id !== value.selfId).forEach(runtime.addRemote);
     latestMovement = '';
     onStatus('');
@@ -53,6 +57,7 @@ export function createGalleryConnection(runtime, { onStatus, onSession, onExpire
   socket.on('gallery:moved', data => { if (data.roomId === session?.roomId && data.id !== session.selfId) runtime.moveRemote(data); });
   socket.on('gallery:left', data => { if (data.roomId === session?.roomId) runtime.removeRemote(data.id); });
   socket.on('disconnect', () => {
+    runtime.setOnline(false);
     runtime.clearRemote();
     if (session) onStatus('Connection lost. Reconnecting to your gallery…');
   });

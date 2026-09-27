@@ -1,7 +1,7 @@
 import { randomInt, randomUUID } from 'node:crypto';
 
 const colors = ['#bba1ec', '#81c9ea', '#e7a1b8', '#8bd3af', '#efcc80', '#eca17e'];
-const normalize = name => name.normalize('NFKC').trim().toLowerCase();
+const normalize = name => name.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 export function validGalleryMovement(value) {
   return value && ['x', 'y', 'z', 'rotationY'].every(key => Number.isFinite(value[key]))
     && Math.abs(value.x) <= 100 && Math.abs(value.z) <= 100
@@ -60,18 +60,21 @@ export function attachGalleryRooms(io, { idleMs = 30 * 60 * 1000, reconnectMs = 
     delete socket.data.token;
   }
   function enter(socket, room, username, host) {
-    if ([...room.members.values()].filter(m => m.socketId).length >= 24) throw new Error('This gallery is full.');
+    if (room.members.size >= 24) throw new Error('This gallery is full (24 players, including reconnecting visitors).');
     const name = normalize(username);
-    if ((!host && name === room.hostName) || [...room.members.values()].some(m => normalize(m.username) === name)) {
+    if (!host && name === room.hostName) throw new Error('That name belongs to the artist. Choose a different username.');
+    if ([...room.members.values()].some(m => normalize(m.username) === name)) {
       throw new Error('That username is already in use in this room. Choose another name.');
     }
     detach(socket, true);
-    const slot = room.members.size;
+    let slot = 0;
+    while ([...room.members.values()].some(m => m.slot === slot)) slot++;
+    const usedColors = new Set([...room.members.values()].map(m => m.color));
     const member = {
       id: randomUUID(), token: randomUUID(), roomId: room.id, socketId: socket.id, username, host,
-      color: colors[slot % colors.length],
+      slot, color: colors.find(color => !usedColors.has(color)) || colors[slot % colors.length],
       // Spawn in the entrance area, slightly separated so arrivals are visible.
-      position: { x: (slot % 3 - 1) * 3, y: 1.5088105201721191, z: 13.69998455 + Math.floor(slot / 3) * 2, rotationY: 0 },
+      position: { x: (slot % 6 - 2.5) * 4, y: 1.5088105201721191, z: 13.69998455 + Math.floor(slot / 6) * 4, rotationY: 0 },
     };
     room.members.set(member.id, member);
     sessions.set(member.token, member);
@@ -113,6 +116,7 @@ export function attachGalleryRooms(io, { idleMs = 30 * 60 * 1000, reconnectMs = 
       return enter(socket, room, username, false);
     });
     request('gallery:resume', data => {
+      if (membership(socket)) throw new Error('Already in a room.');
       const member = sessions.get(data.token);
       if (!member || member.socketId || Date.now() - member.disconnectedAt > reconnectMs) throw new Error('Your connection expired. Please join or create a room again.');
       member.socketId = socket.id;

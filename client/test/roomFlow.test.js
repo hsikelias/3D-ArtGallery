@@ -20,7 +20,7 @@ test('upload boundaries and room codes', () => {
   }
 });
 
-// Exercise the UI event flow with a DOM adapter and a local room service.
+// Exercise the actual UI handlers with a DOM adapter and a network boundary.
 // Real WebGL placement/collision is covered separately by the gallery tests.
 class Element {
   constructor() { this.listeners = {}; this.value = ''; this.children = []; this.hidden = false; }
@@ -35,7 +35,7 @@ class Element {
   close() { this.open = false; this.listeners.close?.(); }
 }
 
-test('create, name the ghost, reopen, and join a saved room without losing the active room on failure', async () => {
+test('forms use online rooms and shared URLs; errors preserve membership and visitors cannot show host codes', async () => {
   const elements = new Map();
   const get = key => {
     if (!elements.has(key)) elements.set(key, new Element());
@@ -57,11 +57,32 @@ test('create, name the ghost, reopen, and join a saved room without losing the a
     window: { addEventListener() {} }, navigator: { clipboard: { async writeText() {} } },
     URL, Blob, console, MAX_IMAGES: 15, validateImage, isRoomCode,
     createGalleryRuntime: async () => runtime,
+    createGalleryConnection(_runtime, callbacks) {
+      const enter = (room, name) => {
+        nameTag.element.textContent = name;
+        resets++;
+        callbacks.onSession(room);
+        return room;
+      };
+      return {
+        async create({ username, images }) {
+          const room = { role: 'host', code: '123456', artworks: ['/api/artworks/room/0'] };
+          assert.equal(images.length, 1);
+          rooms.set(room.code, room);
+          return enter(room, username);
+        },
+        async join({ username, code }) {
+          if (!rooms.has(code)) throw new Error('Room not found.');
+          if (username.toLowerCase() === 'artist') throw new Error('That name belongs to the artist.');
+          return enter({ role: 'visitor', artworks: rooms.get(code).artworks }, username);
+        },
+      };
+    },
     localRooms: {
       async getDraft() { return { images, username: 'Artist' }; },
       async saveDraft(draft) { savedDraft = draft; },
-      async createRoom(values) { const room = { ...values, code: '123456' }; rooms.set(room.code, room); return room; },
-      async getRoom(code) { return rooms.get(code); },
+      async createRoom() { assert.fail('Online creation must not use IndexedDB rooms'); },
+      async getRoom() { assert.fail('Online joining must not use IndexedDB rooms'); },
     },
   });
   const source = (await readFile(new URL('../src/galleryEntry.js', import.meta.url), 'utf8'))
@@ -101,8 +122,11 @@ test('create, name the ghost, reopen, and join a saved room without losing the a
   assert.equal(dialog.open, true);
   assert.equal(displayed, 1, 'failed join preserves the previous exhibition');
   get('#room-code').value = '123456';
+  await get('#identity-form').fire('submit');
+  assert.match(get('#entry-error').textContent, /belongs to the artist/);
   get('#username').value = 'Visitor';
   await get('#identity-form').fire('submit');
   assert.equal(nameTag.element.textContent, 'Visitor');
   assert.equal(dialog.open, false);
+  assert.equal(get('#show-room-code').hidden, true);
 });

@@ -59,9 +59,11 @@ export async function createGalleryRuntime() {
       remotePlayers.set(player.id, { pivot, visual, target: pivot.position.clone(), rotationY: player.rotationY });
     }
     let networkUpdate = () => {};
+    let online = false;
     let elapsed = 0;
     setUpdate((delta) => {
-      playerController.update(delta);
+      if (online) playerController.update(delta);
+      else controls.update(delta);
       elapsed += delta;
       // Bob only the visual child so the movement pivot and camera stay level.
       ghost.position.y = restHeight + 0.4 + Math.sin(elapsed * 1.8) * 0.18;
@@ -80,6 +82,7 @@ export async function createGalleryRuntime() {
     status.hidden = true;
     return {
       controls, playerController, artworkManager, ghost,
+      setOnline(value) { online = value; },
       setNetworkUpdate(callback) { networkUpdate = callback; },
       removeRemote, addRemote,
       clearRemote() { [...remotePlayers.keys()].forEach(removeRemote); },
@@ -90,6 +93,7 @@ export async function createGalleryRuntime() {
         remote.rotationY = player.rotationY;
       },
       setIdentity(player) {
+        ghost.userData.id = player.id;
         ghost.userData.username = player.username;
         ghost.userData.color = player.color;
         ghost.traverse(object => {
