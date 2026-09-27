@@ -4,10 +4,10 @@ import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 // Front face of the middle wall is at Z=-8.77. Keep sculptures forward of it;
 // ArtSlot_12 on the perpendicular partition behind it remains unobstructed.
 export const statuePlacements = [
-  { name: 'Concrete dog', file: 'dog.obj', x: -9, z: -3, height: 6, yaw: Math.PI / 2, color: '#b7b1a5' },
+  { name: 'Concrete dog', file: 'dog.obj', x: 10, z: -20, height: 6, yaw: Math.PI / 2, color: '#b7b1a5' },
   { name: 'The Thinker', file: 'thinker.obj', x: 4, z: -3, height: 7.5, yaw: 0,
     texture: 'thinker-diffuse.jpg', bump: 'thinker-bump.jpg' },
-  { name: 'Stone head', file: 'statue.obj', x: 17, z: -3, height: 8, yaw: 0, texture: 'statue-diffuse.jpg' },
+  { name: 'Stone head', file: 'statue.obj', x: 0, z: -30, height: 8, yaw: 0, texture: 'statue-diffuse.jpg' },
 ];
 const floorY = 1.4820216894;
 const pedestalHeight = 1.4;
