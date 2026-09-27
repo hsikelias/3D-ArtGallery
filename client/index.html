@@ -1,25 +1,311 @@
 ﻿<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HackNite - Gallery inspection</title>
-  </head>
-  <body>
-    <main>
-      <div id="viewport"></div>
-      <section class="panel" aria-labelledby="gallery-heading">
-        <p class="eyebrow">HackNite / Stage 1</p>
-        <h1 id="gallery-heading">Gallery inspection</h1>
-        <p id="setup-status" role="status">Loading the Blender gallery...</p>
-        <p id="scene-details"></p>
-        <p>Drag to orbit / Scroll to zoom / Right-drag to pan</p>
-        <p>Free inspection camera: wall collision comes with the player controls.</p>
-        <button id="reset-view" type="button">Reset view</button>
-        <label><input id="inspection-light" type="checkbox" checked /> Inspection lighting</label>
-      </section>
-      <noscript>Enable JavaScript to view the gallery.</noscript>
-    </main>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Create or join a shared 3D art gallery." />
+  <title>Step inside — 3D Art Gallery</title>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./node_modules/three/build/three.module.js",
+        "three/addons/": "./node_modules/three/examples/jsm/"
+      }
+    }
+  </script>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #29332c; background: #e8e7df; line-height: 1.5; font-synthesis: none; }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; }
+    body:has(dialog[open]) { overflow: hidden; }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible { outline: 3px solid #668348; outline-offset: 4px; }
+    .world { min-height: 100svh; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; position: relative; isolation: isolate; }
+    #viewport { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; z-index: 0; filter: none; }
+    #viewport canvas { display: block; width: 100%; height: 100%; }
+    .brand { position: relative; z-index: 1; width: fit-content; padding: 14px 18px; border-radius: 12px; background: #fffef9e6; }
+    .brand { font-size: 0.8rem; font-weight: 750; letter-spacing: 0.15em; text-transform: uppercase; }
+    .wall { display: flex; justify-content: center; align-items: center; gap: 6vw; padding: 40px 0; }
+    .painting { width: 22vw; max-width: 260px; height: 32vw; max-height: 330px; border: 12px solid #fffaf0; box-shadow: 0 16px 30px #27332422; background: linear-gradient(35deg, #405e4b 40%, #b6be8d 40% 65%, #e0c9a0 65%); }
+    .painting:nth-child(2) { background: radial-gradient(circle at 55% 38%, #e5b378 0 23%, transparent 24%), linear-gradient(140deg, #9c604c 50%, #e4c6ad 50%); }
+    .painting:nth-child(3) { background: linear-gradient(155deg, #b4c5c8 40%, #607d87 40% 65%, #324854 65%); }
+    .gallery-actions { position: fixed; left: max(20px, env(safe-area-inset-left)); bottom: max(20px, env(safe-area-inset-bottom)); z-index: 1; display: flex; flex-wrap: wrap; gap: 10px; max-width: calc(100vw - 40px); }
+    .gallery-actions .secondary { min-height: 44px; padding: 10px 14px; font-size: 0.82rem; color: #343541; background: #fff; border: 2px solid #343541; box-shadow: 3px 3px 0 #dcd5e8; }
+    .gallery-actions .secondary:hover { background: #eee8f4; }
+    .gallery-actions .secondary:disabled { opacity: 0.55; cursor: wait; }
+    #world-status { position: fixed; left: 20px; bottom: 128px; z-index: 1; max-width: min(480px, calc(100vw - 40px)); margin: 0; padding: 10px 14px; border-radius: 8px; background: #fffef9; font-size: 0.85rem; }
+    .muted { color: #626b60; font-size: 0.88rem; }
+    dialog { width: min(540px, calc(100% - 32px)); max-height: calc(100svh - 32px); overflow-y: auto; padding: clamp(24px, 5vw, 40px); border: 1px solid #fff; border-radius: 24px; color: inherit; background: #fffef9; box-shadow: 0 24px 100px #1d2e3433; }
+    dialog::backdrop { background: #28392f26; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+    .eyebrow { margin: 0 0 20px; color: #536849; font-size: 0.72rem; font-weight: 750; letter-spacing: 0.15em; text-transform: uppercase; }
+    h1 { margin: 0 0 14px; font-size: clamp(2rem, 6vw, 2.75rem); line-height: 1.12; letter-spacing: -0.045em; }
+    .intro { margin: 0 0 26px; color: #626b60; }
+    .choice { display: block; width: 100%; text-align: left; padding: 20px; margin-top: 12px; border: 1px solid #d7ddcf; border-radius: 12px; background: #f5f6ee; color: inherit; }
+    .choice:hover { border-color: #668348; background: #edf1e4; }
+    .choice strong { display: block; font-size: 1.05rem; margin-bottom: 5px; }
+    .choice span { display: block; font-size: 0.88rem; color: #626b60; }
+    .back { border: 0; padding: 0; margin: 0 0 22px; background: none; color: #506348; min-height: 32px; }
+    label { display: block; font-weight: 650; margin-bottom: 8px; }
+    input[type="text"] { width: 100%; min-height: 50px; border: 1px solid #9ca693; border-radius: 8px; padding: 12px; color: inherit; background: white; }
+    .hint { margin: 8px 0 24px; color: #626b60; font-size: 0.83rem; }
+    .primary, .secondary { padding: 13px 20px; min-height: 48px; border-radius: 8px; font-weight: 650; }
+    .primary { width: 100%; color: white; background: #35533b; border: 1px solid #35533b; }
+    .primary:hover { background: #29432e; }
+    .secondary { background: #fffef9; color: #35533b; border: 1px solid #9ca693; }
+    .preview { margin: 24px 0 0; padding-top: 16px; border-top: 1px solid #e2e5db; font-size: 0.78rem; color: #626b60; }
+    .summary { padding: 14px 16px; margin-bottom: 24px; border-radius: 8px; background: #edf1e4; overflow-wrap: anywhere; }
+    fieldset { padding: 0; border: 0; margin: 0 0 24px; }
+    legend { margin-bottom: 12px; font-weight: 650; }
+    .art-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .art { font-size: 0.8rem; font-weight: 500; cursor: pointer; }
+    .swatch { display: block; aspect-ratio: 1; border: 4px solid #e1e5d9; border-radius: 8px; margin-bottom: 8px; background: linear-gradient(35deg, #405e4b 40%, #b6be8d 40% 65%, #e0c9a0 65%); }
+    .sun { background: radial-gradient(circle, #e5b378 0 30%, #9c604c 31%); }
+    .sea { background: linear-gradient(155deg, #b4c5c8 40%, #607d87 40% 65%, #324854 65%); }
+    .art:has(input:checked) .swatch { border-color: #35533b; }
+    .art input { accent-color: #35533b; }
+    #art-error { color: #a32d28; font-size: 0.85rem; }
+    #completion-message { overflow-wrap: anywhere; }
+    @media (max-width: 420px) { .gallery-actions { flex-direction: column; align-items: start; } .art-grid { gap: 8px; } }
+    /* Comic palette and chunky, offset details across every popup step. */
+    dialog { --ink: #343541; --cream: #ffffff; --yellow: #e4dff0; --orange: #eee8f4; --teal: #e0eaf0; width: min(720px, calc(100% - 40px)); max-height: calc(100svh - 48px); padding: clamp(22px, 4vw, 38px); border: 3px solid var(--ink); border-radius: 14px; color: var(--ink); background: #ffffff; box-shadow: 10px 12px 0 var(--orange); scrollbar-width: thin; scrollbar-color: #b8b7c3 #f5f4f7; }
+    dialog::before { content: ""; display: block; height: 20px; margin-bottom: 30px; border: 3px solid var(--ink); background: repeating-linear-gradient(90deg, var(--orange) 0 64px, var(--yellow) 64px 128px, var(--teal) 128px 192px, var(--ink) 192px 200px); }
+    .eyebrow { display: table; max-width: 100%; margin-bottom: 22px; padding: 7px 12px; transform: rotate(-2deg); color: var(--ink); background: var(--teal); font-size: 0.82rem; font-weight: 950; letter-spacing: 0.14em; }
+    h1 { margin-bottom: 20px; color: #55516d; font-family: "Arial Black", system-ui, sans-serif; font-size: clamp(2.2rem, 5.5vw, 3.4rem); font-weight: 950; line-height: 1.08; text-shadow: 3px 4px 0 #e4dff0; overflow-wrap: anywhere; }
+    h1:focus { outline: none; }
+    .intro { margin-bottom: 32px; color: #62616d; font-size: clamp(1rem, 2.5vw, 1.2rem); }
+    .choice { padding: clamp(18px, 3vw, 26px); margin-top: 20px; border: 3px solid var(--ink); border-radius: 8px; background: var(--orange); color: var(--ink); box-shadow: 6px 6px 0 var(--yellow); transition: transform 140ms ease, box-shadow 140ms ease; }
+    #choose-join { background: var(--teal); box-shadow: 6px 6px 0 var(--orange); }
+    .choice:hover { border-color: var(--ink); background: var(--orange); transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--yellow); }
+    #choose-join:hover { box-shadow: 8px 8px 0 var(--orange); }
+    .choice:active, #choose-join:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0 var(--cream); }
+    .choice strong { font-size: clamp(1.2rem, 3vw, 1.5rem); font-weight: 900; margin-bottom: 8px; }
+    .choice span { font-size: 1rem; color: var(--ink); }
+    .back { display: block; color: #55516d; font-weight: 800; }
+    input[type="text"] { border: 3px solid var(--ink); color: var(--ink); background: #faf9fc; box-shadow: 3px 3px 0 var(--teal); }
+    .hint, dialog .muted { color: #6b6877; }
+    .primary { color: var(--ink); background: var(--yellow); border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--orange); font-weight: 850; }
+    .primary:hover { background: #d8d0e8; }
+    .preview { margin-top: 32px; padding-top: 20px; border-top: 2px dashed #c4bfce; color: #6b6877; }
+    .summary { border: 2px solid var(--teal); background: #f4f3f8; }
+    .art:has(input:checked) .swatch { border-color: var(--yellow); box-shadow: 3px 3px 0 var(--orange); }
+    .art input { accent-color: #68617f; }
+    #art-error { color: #a34253; }
+    dialog button:focus-visible, dialog input:focus-visible { outline: 3px solid #71628c; outline-offset: 5px; }
+    .close-menu { position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 2px solid var(--ink); border-radius: 8px; color: var(--ink); background: #fff; box-shadow: 2px 2px 0 #dcd5e8; font-size: 1.7rem; line-height: 1; }
+    .close-menu:hover { background: #eee8f4; }
+    dialog:has(.close-menu:not([hidden]))::before { margin-right: 28px; }
+    @media (prefers-reduced-motion: reduce) { .choice { transition: none; } }
+  </style>
+</head>
+<body>
+  <main class="world">
+    <div id="viewport"></div>
+    <div class="brand">The shared gallery</div>
+    <p id="world-status" role="status">Loading the 3D gallery…</p>
+    <div class="gallery-actions" role="group" aria-label="Gallery controls">
+      <button id="reset-player" class="secondary" type="button" disabled>Reset player and camera</button>
+      <button id="reopen" class="secondary" type="button">Open gallery menu</button>
+    </div>
+  </main>
+  <dialog id="entry-dialog" aria-labelledby="dialog-title" aria-describedby="dialog-description">
+    <button id="close-menu" class="close-menu" type="button" aria-label="Close gallery menu" hidden>×</button>
+    <button id="back" class="back" type="button" hidden>← Back</button>
+    <p id="step-label" class="eyebrow">Welcome to the gallery</p>
+    <h1 id="dialog-title" tabindex="-1">Step inside.</h1>
+    <p id="dialog-description" class="intro">Bring your art, or explore someone else's. How would you like to begin?</p>
+
+    <section data-step="welcome">
+      <button class="choice" id="choose-create" type="button"><strong>Create a gallery ↗</strong><span>Bring your artwork from Bluesky and invite people in.</span></button>
+      <button class="choice" id="choose-join" type="button"><strong>Join a room →</strong><span>Have an invitation? Enter your room code.</span></button>
+    </section>
+
+    <form data-step="artwork" id="art-form" hidden>
+      <label for="bluesky-handle">Your Bluesky handle</label>
+      <input id="bluesky-handle" name="handle" type="text" placeholder="you.bsky.social" autocomplete="off" maxlength="253" required aria-describedby="bluesky-hint" />
+      <p id="bluesky-hint" class="hint">Preview only: no Bluesky posts are fetched. Try the sample artwork below.</p>
+      <fieldset aria-describedby="art-error">
+        <legend>Choose sample artwork</legend>
+        <div class="art-grid">
+          <label class="art"><span class="swatch"></span><input type="checkbox" name="artwork" value="sample-garden" /> Garden</label>
+          <label class="art"><span class="swatch sun"></span><input type="checkbox" name="artwork" value="sample-sun" /> Sun</label>
+          <label class="art"><span class="swatch sea"></span><input type="checkbox" name="artwork" value="sample-sea" /> Sea</label>
+        </div>
+        <p id="art-error" role="alert"></p>
+      </fieldset>
+      <button class="primary" type="submit">Continue</button>
+    </form>
+
+    <form data-step="room" id="room-form" hidden>
+      <label for="room-code">Room code</label>
+      <input id="room-code" name="roomCode" type="text" placeholder="e.g. K7PJ3" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="12" required aria-describedby="room-hint" />
+      <p id="room-hint" class="hint">Enter the code shared by your host. Codes aren't checked against a server in this preview.</p>
+      <button class="primary" type="submit">Continue</button>
+    </form>
+
+    <form data-step="identity" id="identity-form" hidden>
+      <p id="room-summary" class="summary"></p>
+      <label for="username">Your username <span class="muted">(required)</span></label>
+      <input id="username" name="username" type="text" autocomplete="nickname" placeholder="What should we call you?" maxlength="24" required aria-describedby="username-hint" />
+      <p id="username-hint" class="hint">Use 1–24 characters. Other visitors will see this above your ghost.</p>
+      <button id="submit-entry" class="primary" type="submit">Join room</button>
+    </form>
+
+    <section data-step="complete" hidden>
+      <p id="completion-message" class="summary" role="status"></p>
+      <button id="view-backdrop" class="primary" type="button">View gallery preview</button>
+    </section>
+    <p class="preview">UI prototype · Bluesky import and live rooms are not connected yet.</p>
+  </dialog>
+  <noscript><p>Enable JavaScript to try the gallery popups.</p></noscript>
+  <script type="module">
+    const dialog = document.querySelector('#entry-dialog');
+    const world = document.querySelector('.world');
+    let galleryControls;
+    const resetPlayer = document.querySelector('#reset-player');
+    resetPlayer.addEventListener('click', () => {
+      if (!galleryControls || dialog.open) return;
+      // Clear orbit momentum, then restore the saved starting position and zoom.
+      const damping = galleryControls.enableDamping;
+      galleryControls.enableDamping = false;
+      galleryControls.update();
+      galleryControls.reset();
+      galleryControls.enableDamping = damping;
+    });
+    function syncModalState() {
+      world.inert = dialog.open;
+      if (galleryControls) galleryControls.enabled = !dialog.open;
+    }
+    function openMenu() {
+      document.querySelector('#close-menu').hidden = !state.hasEnteredGallery;
+      dialog.showModal();
+      syncModalState();
+      showStep('welcome');
+    }
+    dialog.addEventListener('close', syncModalState);
+    new MutationObserver(syncModalState).observe(dialog, { attributes: true, attributeFilter: ['open'] });
+    const title = document.querySelector('#dialog-title');
+    const description = document.querySelector('#dialog-description');
+    const back = document.querySelector('#back');
+    const handle = document.querySelector('#bluesky-handle');
+    const code = document.querySelector('#room-code');
+    const username = document.querySelector('#username');
+    const artError = document.querySelector('#art-error');
+    const state = { step: 'welcome', mode: null, artworks: [], hasEnteredGallery: false };
+    function closeMenu() {
+      if (!state.hasEnteredGallery) return;
+      dialog.close();
+      syncModalState();
+      document.querySelector('#reopen').focus();
+    }
+    document.querySelector('#close-menu').addEventListener('click', closeMenu);
+    const copy = {
+      welcome: ['Welcome to the gallery', 'Step inside.', "Bring your art, or explore someone else's. How would you like to begin?"],
+      artwork: ['Create / 01', 'Bring your art.', 'Your Bluesky artwork will become an exhibition to explore together.'],
+      room: ['Join / 01', 'Find your people.', 'Every shared gallery starts with an invitation.'],
+      identity: ['Almost there / 02', 'Who’s visiting?', 'Choose a username before creating or joining a room.'],
+      complete: ['Preview complete', 'You’re ready.', 'This is where the live gallery will open once rooms are connected.'],
+    };
+
+    function showStep(step) {
+      state.step = step;
+      document.querySelectorAll('[data-step]').forEach(section => { section.hidden = section.dataset.step !== step; });
+      const [label, heading, intro] = copy[step];
+      document.querySelector('#step-label').textContent = label;
+      title.textContent = heading;
+      description.textContent = intro;
+      back.hidden = step === 'welcome';
+      if (step === 'identity') {
+        document.querySelector('#room-summary').textContent = state.mode === 'create'
+          ? `${state.artworks.length} sample artwork(s) selected. A shareable room code will be generated when the server creates your gallery.`
+          : `Room code: ${code.value}`;
+        document.querySelector('#submit-entry').textContent = state.mode === 'create' ? 'Create room' : 'Join room';
+      }
+      title.focus();
+    }
+
+    // Native modal behavior traps focus; the scene controls are also disabled.
+    dialog.addEventListener('cancel', event => {
+      event.preventDefault();
+      if (state.hasEnteredGallery) closeMenu();
+      else if (state.step !== 'welcome') goBack();
+    });
+    function goBack() {
+      if (state.step === 'complete') showStep('identity');
+      else if (state.step === 'identity') showStep(state.mode === 'create' ? 'artwork' : 'room');
+      else showStep('welcome');
+    }
+    back.addEventListener('click', goBack);
+    document.querySelector('#choose-create').addEventListener('click', () => { state.mode = 'create'; showStep('artwork'); });
+    document.querySelector('#choose-join').addEventListener('click', () => { state.mode = 'join'; showStep('room'); });
+
+    function trimmedValue(input, message) {
+      input.value = input.value.trim();
+      input.setCustomValidity(input.value ? '' : message);
+      return input.reportValidity();
+    }
+    [handle, code, username].forEach(input => input.addEventListener('input', () => input.setCustomValidity('')));
+    document.querySelector('#art-form').addEventListener('change', () => { artError.textContent = ''; });
+    document.querySelector('#art-form').addEventListener('submit', event => {
+      event.preventDefault();
+      if (!trimmedValue(handle, 'Enter your Bluesky handle.')) return;
+      state.artworks = Array.from(document.querySelectorAll('input[name="artwork"]:checked'), input => input.value);
+      if (!state.artworks.length) { artError.textContent = 'Choose at least one sample artwork to continue.'; return; }
+      showStep('identity');
+    });
+    document.querySelector('#room-form').addEventListener('submit', event => {
+      event.preventDefault();
+      if (!trimmedValue(code, 'Enter a room code, not just spaces.')) return;
+      code.value = code.value.toUpperCase();
+      code.setCustomValidity(/^[A-Z0-9]{1,12}$/.test(code.value) ? '' : 'Use only letters and numbers for the room code.');
+      if (!code.reportValidity()) return;
+      showStep('identity');
+    });
+    document.querySelector('#identity-form').addEventListener('submit', event => {
+      event.preventDefault();
+      if (!trimmedValue(username, 'Enter a username, not just spaces.')) return;
+      // No real room or code is created here. Replace this preview boundary
+      // with the server request, and enter the world only after it succeeds.
+      showStep('complete');
+      document.querySelector('#completion-message').textContent = state.mode === 'create'
+        ? `${username.value}, your gallery setup is ready. In the connected app, creating it will generate your room code. No room has been created in this preview.`
+        : `${username.value}, you’re ready to join ${code.value}. No server connection has been made in this preview.`;
+    });
+    document.querySelector('#view-backdrop').addEventListener('click', () => {
+      if (state.step !== 'complete') return;
+      state.hasEnteredGallery = true;
+      closeMenu();
+    });
+    document.querySelector('#reopen').addEventListener('click', openMenu);
+    openMenu();
+
+    async function startGallery() {
+      const status = document.querySelector('#world-status');
+      try {
+        // Plain static servers do not map Vite's public directory to the root.
+        if (!import.meta.env) {
+          const { DefaultLoadingManager } = await import('three');
+          DefaultLoadingManager.setURLModifier(url => url === '/models/gallery.glb'
+            ? new URL('./public/models/gallery.glb', document.baseURI).href
+            : url);
+        }
+        const [{ createScene }, { loadGallery }] = await Promise.all([
+          import('./src/scene/createScene.js'),
+          import('./src/scene/loadGallery.js'),
+        ]);
+        const { scene, controls, inspectionLighting } = createScene(document.querySelector('#viewport'));
+        galleryControls = controls;
+        syncModalState();
+        await loadGallery(scene, inspectionLighting);
+        status.hidden = true;
+        resetPlayer.disabled = false;
+      } catch (error) {
+        console.error('Gallery preview failed:', error);
+        status.textContent = `Unable to load the 3D gallery: ${error.message || String(error)}`;
+      }
+    }
+    startGallery();
+  </script>
+</body>
 </html>
